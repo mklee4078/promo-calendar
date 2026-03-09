@@ -1959,22 +1959,20 @@ function App() {
     // Firebase에서 받은 데이터가 PRESET과 다를 때만 적용
     window.__setFbEvents = (data) => {
       const list = data.list || data;
-      const ver = data.version || "";
-      // 버전이 v2026-03 이 아니면 → 구버전 데이터 → PRESET으로 강제 교체
-      if (ver !== "v2026-03" || !list || list.length === 0) {
-        console.log("구버전 데이터 감지 → PRESET으로 초기화");
-        window.__saveToFirebase && window.__saveToFirebase(PRESET_EVENTS);
+      if (!list || list.length === 0) {
+        console.log("Firebase 데이터 없음 → PRESET 유지");
         setEvents(PRESET_EVENTS);
         saveLS(LS_EVENTS, PRESET_EVENTS);
         return;
       }
+      console.log("Firebase 데이터 적용: " + list.length + "건");
       setEvents(list);
       saveLS(LS_EVENTS, list);
     };
-    // 3초 후에도 Firebase 데이터 없으면 PRESET으로 Firebase 초기화
+    // 3초 후에도 Firebase 미연결이면 로컬 모드 전환만 (Firebase 덮어쓰기 안 함)
     const t = setTimeout(() => {
-      if (!window.__fbReady && window.__saveToFirebase) {
-        window.__saveToFirebase(PRESET_EVENTS);
+      if (!window.__fbReady) {
+        console.log("Firebase 연결 지연 → 로컬 모드");
       }
     }, 3000);
     return () => clearTimeout(t);
