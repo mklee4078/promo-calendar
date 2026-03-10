@@ -1005,7 +1005,68 @@ function ChannelDashboard({channel,events,brand,bc,jasaMemos,saveJasaMemo,channe
             <div style={{fontSize:17,fontWeight:900,color:"#b36622"}}>{presetActAT>0?(presetActAT/100000000).toFixed(2)+"억":"-"}</div>
           </div>
         </div>
-      )}<div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",overflow:"hidden"}}>
+      )}<div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"16px 20px",marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:12,letterSpacing:1}}>월별 목표 vs 실적</div>
+        {(()=>{
+          const months=Array.from({length:12},(_,i)=>i+1);
+          const tgts=months.map(mn=>{
+            const s=strats[mn];
+            if(s) return parseAmt(s[tgtKey]||s.tgt);
+            // strats 없으면 CHANNEL_ACTUAL_DATA tgt
+            const cbT=(CHANNEL_ACTUAL_DATA["시티브리즈_"+channel]||{})[String(mn)]?.tgt||0;
+            const atT=(CHANNEL_ACTUAL_DATA["아티드_"+channel]||{})[String(mn)]?.tgt||0;
+            return brand==="전체"?cbT+atT:brand==="시티브리즈"?cbT:atT;
+          });
+          const acts=months.map(mn=>{
+            const s=strats[mn];
+            const sv=s&&s.act?parseAmt(s.act):0;
+            const cbA=(CHANNEL_ACTUAL_DATA["시티브리즈_"+channel]||{})[String(mn)]?.act||0;
+            const atA=(CHANNEL_ACTUAL_DATA["아티드_"+channel]||{})[String(mn)]?.act||0;
+            const pv=brand==="전체"?cbA+atA:brand==="시티브리즈"?cbA:atA;
+            return sv>0?sv:pv;
+          });
+          const maxVal=Math.max(...tgts,...acts,1);
+          const BAR_W=36, GAP=8, H=80, LABEL_H=16;
+          const totalW=months.length*(BAR_W+GAP)-GAP;
+          const todayM=new Date().getMonth()+1;
+          return (
+            <svg width="100%" viewBox={`0 0 ${totalW+20} ${H+LABEL_H+8}`} style={{overflow:"visible"}}>
+              {months.map((mn,i)=>{
+                const x=i*(BAR_W+GAP);
+                const tH=Math.round((tgts[i]/maxVal)*H)||0;
+                const aH=Math.round((acts[i]/maxVal)*H)||0;
+                const rate=tgts[i]>0?Math.round(acts[i]/tgts[i]*100):null;
+                const isCur=mn===todayM;
+                const isPast=mn<todayM;
+                const tgtCol=isCur?"#2B4B9E":"#c5cfe8";
+                const actCol=acts[i]>0?(rate>=100?"#27ae60":rate>=70?"#e67e22":"#e74c3c"):"#e0e4f0";
+                return (
+                  <g key={mn}>
+                    {/* 목표 바 (배경) */}
+                    <rect x={x} y={H-tH} width={BAR_W} height={tH||2} fill={tgtCol} rx={3} opacity={0.3}/>
+                    {/* 실적 바 */}
+                    {acts[i]>0&&<rect x={x+4} y={H-aH} width={BAR_W-8} height={aH||2} fill={actCol} rx={2}/>}
+                    {/* 현재월 테두리 */}
+                    {isCur&&<rect x={x-1} y={0} width={BAR_W+2} height={H+2} fill="none" stroke="#2B4B9E" strokeWidth={1.5} rx={4} opacity={0.5}/>}
+                    {/* 달성률 */}
+                    {rate!==null&&acts[i]>0&&<text x={x+BAR_W/2} y={H-aH-3} textAnchor="middle" fontSize={8} fontWeight={700} fill={actCol}>{rate}%</text>}
+                    {/* 월 라벨 */}
+                    <text x={x+BAR_W/2} y={H+LABEL_H} textAnchor="middle" fontSize={9} fontWeight={isCur?800:500} fill={isCur?"#2B4B9E":"#889"}>{mn}월</text>
+                    {/* 목표 금액 (hover tooltip 대신 현재월만) */}
+                    {isCur&&tgts[i]>0&&<text x={x+BAR_W/2} y={H+LABEL_H+9} textAnchor="middle" fontSize={7} fill="#aaa">{(tgts[i]/100000000).toFixed(1)}억</text>}
+                  </g>
+                );
+              })}
+              {/* 범례 */}
+              <rect x={totalW-60} y={-12} width={10} height={10} fill="#c5cfe8" rx={2} opacity={0.5}/>
+              <text x={totalW-48} y={-4} fontSize={8} fill="#889">목표</text>
+              <rect x={totalW-22} y={-12} width={10} height={10} fill="#27ae60" rx={2}/>
+              <text x={totalW-10} y={-4} fontSize={8} fill="#889">실적</text>
+            </svg>
+          );
+        })()}
+      </div>
+      <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",overflow:"hidden"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{background:"#f4f6fb"}}>
@@ -1406,6 +1467,8 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
   const [impF,setImpF] = useState([]);
   const [chF,setChF] = useState([]);
   const [typeF,setTypeF] = useState([]);
+  const [mgrF,setMgrF] = useState([]);  // ⑤ 담당자 필터
+  const [showMgrLoad,setShowMgrLoad] = useState(false); // ⑤ 담당자 부하 패널
   const [selectedIds,setSelectedIds] = useState(new Set());
   const [editCell,setEditCell] = useState(null);
   const [sortKey,setSortKey] = useState(null);
@@ -1423,7 +1486,8 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
     const impOk=impF.length===0||impF.includes(e.importance);
     const chOk=chF.length===0||chF.includes(e.channel);
     const typeOk=typeF.length===0||typeF.includes(inferType(e));
-    return statusOk&&impOk&&chOk&&typeOk;
+    const mgrOk=mgrF.length===0||mgrF.includes(e.manager||"미지정");
+    return statusOk&&impOk&&chOk&&typeOk&&mgrOk;
   });
   const SORT_FN = {"상태":e=>getStatus(e.startDate,e.endDate).label,"중요도":e=>e.importance,"채널":e=>e.channel,"유형":e=>e.eventType||"","쿠폰(%)":e=>Number(e.coupon)||0,"쿠폰부담":e=>e.couponBurden||"","행사명":e=>e.name,"담당자":e=>e.manager||"","시작일":e=>e.startDate,"종료일":e=>e.endDate,"기간":e=>e.startDate,"목표매출":e=>Number(e.targetSales)||0,"실매출":e=>Number(e.actualSales)||0,"달성률":e=>e.targetSales&&e.actualSales?Number(e.actualSales)/Number(e.targetSales):0,"비고":e=>e.note||"","경로":e=>e.path||""};
   if(sortKey&&SORT_FN[sortKey]){
@@ -1502,18 +1566,44 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
       return [ev.brand,ev.channel,ev.name,eType,ev.startDate,ev.endDate,dur,ev.coupon||"",cBurden,ev.manager||"",imp,target,actual,rate,st,ev.note||""];
     });
     const wb=XLSX.utils.book_new();
+    const colWidths=[{wch:12},{wch:12},{wch:30},{wch:12},{wch:12},{wch:12},{wch:7},{wch:8},{wch:10},{wch:10},{wch:8},{wch:14},{wch:14},{wch:8},{wch:8},{wch:22}];
+
+    const applySheetStyle = (ws, rowCount) => {
+      ws["!cols"] = colWidths;
+      // 헤더 행 배경색
+      headers.forEach((_,ci) => {
+        const cellRef = XLSX.utils.encode_cell({r:0, c:ci});
+        if (!ws[cellRef]) ws[cellRef] = {v: headers[ci], t: "s"};
+        ws[cellRef].s = {
+          fill: {fgColor: {rgb: "2B4B9E"}},
+          font: {bold: true, color: {rgb: "FFFFFF"}, sz: 11},
+          alignment: {horizontal: "center", vertical: "center"},
+          border: {bottom: {style: "thin", color: {rgb: "FFFFFF"}}}
+        };
+      });
+      // 달성률 컬럼 색상 (col 13)
+      for (let r = 1; r <= rowCount; r++) {
+        const cellRef = XLSX.utils.encode_cell({r, c:13});
+        if (ws[cellRef] && ws[cellRef].v) {
+          const pct = parseInt(ws[cellRef].v);
+          const color = pct >= 100 ? "27AE60" : pct >= 80 ? "E67E22" : pct >= 0 ? "E74C3C" : "AAAAAA";
+          ws[cellRef].s = {font: {bold: true, color: {rgb: color}}};
+        }
+      }
+    };
+
     const wsAll=XLSX.utils.aoa_to_sheet([headers,...allRows]);
-    wsAll["!cols"]=[{wch:12},{wch:12},{wch:28},{wch:12},{wch:12},{wch:8},{wch:8},{wch:14},{wch:10},{wch:14},{wch:14},{wch:8},{wch:8},{wch:20}];
+    applySheetStyle(wsAll, allRows.length);
     XLSX.utils.book_append_sheet(wb,wsAll,"전체");
     DEFAULT_BRANDS.forEach(b=>{
       const bRows=allRows.filter(r=>r[0]===b);
       if(bRows.length>0){
         const ws=XLSX.utils.aoa_to_sheet([headers,...bRows]);
-        ws["!cols"]=wsAll["!cols"];
+        applySheetStyle(ws, bRows.length);
         XLSX.utils.book_append_sheet(wb,ws,b);
       }
     });
-    XLSX.writeFile(wb,"프로모션_캘린더_2026.xlsx");
+    XLSX.writeFile(wb,"프로모션_캘린더_2026.xlsx",{bookType:"xlsx",bookSST:false,type:"binary",cellStyles:true});
   };
 
   function InlineCellCal({evId,field,currentVal,otherVal,onSave}) {
@@ -1615,7 +1705,7 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
             <span style={{fontSize:10,fontWeight:700,color:"#889"}}>채널</span>
             {allChsInBrand.map(ch=><ChFBtn key={ch} ch={ch}/>)}
           </div>
-          <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap",paddingRight:12,marginRight:12,borderRight:"1px solid #e8ecf4"}}>
             <span style={{fontSize:10,fontWeight:700,color:"#889"}}>유형</span>
             {EVENT_TYPES.filter(o=>o.val).map(({val,lbl,c})=>{
               const active=typeF.includes(val);
@@ -1623,7 +1713,59 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
                 style={{padding:"3px 8px",borderRadius:6,border:`1.5px solid ${active?c:"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:active?c+"15":"#fff",color:active?c:"#889"}}>{lbl}</button>;
             })}
           </div>
+          {/* ⑤ 담당자 필터 */}
+          {(()=>{
+            const allMgrs=[...new Set(events.filter(e=>brand==="전체"||e.brand===brand).map(e=>e.manager||"미지정"))].filter(Boolean).sort();
+            return (
+              <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap",paddingRight:12,marginRight:12,borderRight:"1px solid #e8ecf4"}}>
+                <span style={{fontSize:10,fontWeight:700,color:"#889"}}>담당자</span>
+                {allMgrs.map(mg=>{
+                  const active=mgrF.includes(mg);
+                  return <button key={mg} onClick={()=>setMgrF(p=>p.includes(mg)?p.filter(x=>x!==mg):[...p,mg])}
+                    style={{padding:"3px 8px",borderRadius:6,border:`1.5px solid ${active?"#7c5cbf":"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:active?"#7c5cbf15":"#fff",color:active?"#7c5cbf":"#889"}}>{mg}</button>;
+                })}
+              </div>
+            );
+          })()}
+          <button onClick={()=>setShowMgrLoad(p=>!p)}
+            style={{padding:"3px 10px",borderRadius:6,border:`1.5px solid ${showMgrLoad?"#7c5cbf":"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:showMgrLoad?"#7c5cbf":"#fff",color:showMgrLoad?"#fff":"#889",whiteSpace:"nowrap"}}>
+            부하 요약
+          </button>
         </div>
+        {/* ⑤ 담당자 부하 요약 패널 */}
+        {showMgrLoad&&(()=>{
+          const now=new Date(); now.setHours(0,0,0,0);
+          const curMonthStr=`2026-${String(now.getMonth()+1).padStart(2,"0")}`;
+          const baseEvs=events.filter(e=>brand==="전체"||e.brand===brand);
+          const allMgrs=[...new Set(baseEvs.map(e=>e.manager||"미지정"))].filter(Boolean).sort();
+          return (
+            <div style={{padding:"10px 14px",background:"#f3f0ff",borderBottom:"1px solid #e0d8f8",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-start"}}>
+              <span style={{fontSize:10,fontWeight:800,color:"#7c5cbf",marginRight:4,alignSelf:"center"}}>담당자별 행사 현황</span>
+              {allMgrs.map(mg=>{
+                const mEvs=baseEvs.filter(e=>(e.manager||"미지정")===mg);
+                const total=mEvs.length;
+                const active=mEvs.filter(e=>getStatus(e.startDate,e.endDate).label==="진행중").length;
+                const thisMonth=mEvs.filter(e=>e.startDate.startsWith(curMonthStr)||e.endDate.startsWith(curMonthStr)||(e.startDate<curMonthStr&&e.endDate>=curMonthStr+"-01")).length;
+                const upcoming2=mEvs.filter(e=>{const s=parseDt(e.startDate);if(!s)return false;const d=Math.round((s-now)/86400000);return d>=0&&d<=14;}).length;
+                return (
+                  <div key={mg} style={{background:"#fff",borderRadius:8,padding:"8px 12px",minWidth:120,boxShadow:"0 1px 4px #7c5cbf15",border:"1px solid #d8cff0",cursor:"pointer"}}
+                    onClick={()=>setMgrF(p=>p.includes(mg)?p.filter(x=>x!==mg):[...p,mg])}>
+                    <div style={{fontWeight:800,fontSize:12,color:"#5a3f8a",marginBottom:4}}>{mg}</div>
+                    <div style={{display:"flex",gap:8,fontSize:10}}>
+                      <span style={{color:"#27ae60",fontWeight:700}}>진행{active}</span>
+                      <span style={{color:"#2B4B9E",fontWeight:700}}>이달{thisMonth}</span>
+                      <span style={{color:"#e67e22",fontWeight:700}}>D-14내{upcoming2}</span>
+                    </div>
+                    <div style={{fontSize:10,color:"#aaa",marginTop:2}}>전체 {total}건</div>
+                    <div style={{height:3,borderRadius:2,background:"#f0ecff",marginTop:6,overflow:"hidden"}}>
+                      <div style={{height:"100%",borderRadius:2,background:mgrF.includes(mg)?"#7c5cbf":"#c4b5f8",width:`${Math.min(thisMonth/5*100,100)}%`,transition:"width 0.3s"}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
         {/* 테이블 */}
         {rows.length===0
           ?<div style={{padding:40,textAlign:"center",color:"#aaa",fontSize:14}}>조건에 맞는 행사가 없습니다.</div>
@@ -1768,6 +1910,74 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
           </div>
         }
       </>}
+    </div>
+  );
+}
+
+// ── UrgentBanner (D-3 임박 행사 슬라이딩 배너) ──────────────
+function UrgentBanner({events, brand, bc}) {
+  const [idx, setIdx] = React.useState(0);
+  const [visible, setVisible] = React.useState(true);
+  const now = new Date(); now.setHours(0,0,0,0);
+
+  const urgent = events.filter(e => {
+    if (brand !== "전체" && e.brand !== brand) return false;
+    const s = parseDt(e.startDate);
+    if (!s) return false;
+    const d = Math.round((s - now) / 86400000);
+    return d >= 0 && d <= 3;
+  }).sort((a,b) => a.startDate.localeCompare(b.startDate));
+
+  React.useEffect(() => {
+    if (urgent.length <= 1) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % urgent.length), 3500);
+    return () => clearInterval(t);
+  }, [urgent.length]);
+
+  if (!visible || urgent.length === 0) return null;
+
+  const ev = urgent[idx];
+  const s = parseDt(ev.startDate);
+  const dDay = Math.round((s - now) / 86400000);
+  const imp = ev.importance;
+  const dotColor = imp === "L" ? "#e74c3c" : imp === "3" ? "#e67e22" : imp === "2" ? "#f1c40f" : "#4f6ef7";
+  const dLabel = dDay === 0 ? "D-DAY" : `D-${dDay}`;
+
+  return (
+    <div style={{
+      background: `linear-gradient(90deg, ${bc.tag}18 0%, ${bc.tag}08 100%)`,
+      borderBottom: `2px solid ${bc.tag}33`,
+      padding: "5px 24px",
+      display: "flex", alignItems: "center", gap: 10,
+      fontSize: 12, position: "relative", overflow: "hidden"
+    }}>
+      <div style={{
+        background: bc.tag, color: "#fff", borderRadius: 6,
+        padding: "2px 8px", fontWeight: 900, fontSize: 11, flexShrink: 0, letterSpacing: 1
+      }}>{dLabel}</div>
+      <div style={{width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0}}/>
+      <div style={{fontWeight: 700, color: "#2c3e50", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
+        {ev.brand !== "전체" && brand === "전체" && (
+          <span style={{fontSize: 10, color: "#fff", background: ev.brand === "시티브리즈" ? "#2B4B9E" : "#e67e22",
+            borderRadius: 4, padding: "1px 6px", marginRight: 6, fontWeight: 700}}>{ev.brand}</span>
+        )}
+        {ev.channel && <span style={{color: "#888", fontWeight: 500, marginRight: 4}}>[{ev.channel}]</span>}
+        {ev.name}
+      </div>
+      {urgent.length > 1 && (
+        <div style={{display: "flex", gap: 4, flexShrink: 0}}>
+          {urgent.map((_,i) => (
+            <div key={i} onClick={() => setIdx(i)} style={{
+              width: i === idx ? 16 : 6, height: 6, borderRadius: 3,
+              background: i === idx ? bc.tag : "#ccc", cursor: "pointer", transition: "width 0.3s"
+            }}/>
+          ))}
+        </div>
+      )}
+      <button onClick={() => setVisible(false)} style={{
+        background: "none", border: "none", cursor: "pointer",
+        color: "#aaa", fontSize: 14, padding: "0 4px", lineHeight: 1, flexShrink: 0
+      }}>×</button>
     </div>
   );
 }
@@ -2383,6 +2593,9 @@ function App() {
         <button onClick={openAdd} style={{background:"#fff",color:bc.tag,border:"none",borderRadius:10,padding:"8px 18px",fontWeight:800,fontSize:14,cursor:"pointer",boxShadow:"0 2px 8px #0002"}}>+ 행사 추가</button>
       </div>
 
+      {/* D-3 임박 행사 배너 */}
+      <UrgentBanner events={events} brand={brand} bc={bc}/>
+
       {/* 내비 탭 */}
       <div style={{position:"sticky",top:60,zIndex:200,background:"#f0f2f8",borderBottom:"1px solid #dde4f0"}}>
         {/* 1행: 전체연간 + 채널대시보드 */}
@@ -2425,6 +2638,42 @@ function App() {
         </div>
         )}
       </div>
+
+      {/* ② D-Day 임박 배너 */}
+      {(()=>{
+        const today=new Date(); today.setHours(0,0,0,0);
+        const upcoming=events.filter(e=>{
+          if(brand!=="전체"&&e.brand!==brand) return false;
+          const s=parseDt(e.startDate); if(!s) return false;
+          const diff=Math.round((s-today)/86400000);
+          return diff>=0&&diff<=3;
+        }).sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,8);
+        if(!upcoming.length) return null;
+        const items=[...upcoming,...upcoming,...upcoming];
+        return (
+          <div style={{background:"#1a2340",overflow:"hidden",position:"relative",height:30,flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",height:"100%"}}>
+              <div style={{background:"#e67e22",color:"#fff",fontWeight:800,fontSize:10,padding:"0 12px",height:"100%",display:"flex",alignItems:"center",whiteSpace:"nowrap",letterSpacing:0.5,flexShrink:0}}>🔥 임박</div>
+              <div style={{flex:1,overflow:"hidden"}}>
+                <div style={{display:"flex",animation:"dday-scroll 28s linear infinite",willChange:"transform"}}>
+                  {items.map((ev,i)=>{
+                    const diff=Math.round((parseDt(ev.startDate)-today)/86400000);
+                    const lbl=diff===0?"D-0 오늘":diff===1?"D-1 내일":`D-${diff}`;
+                    const col=diff===0?"#ff6b6b":diff===1?"#ffd93d":"#74c0fc";
+                    const bC=ev.brand==="시티브리즈"?"#7ec8ff":"#ffb347";
+                    return(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"0 20px",borderRight:"1px solid #ffffff12",height:30,flexShrink:0}}>
+                      <span style={{background:bC,color:"#111",borderRadius:3,padding:"1px 4px",fontWeight:800,fontSize:9}}>{ev.brand==="시티브리즈"?"CT":"AT"}</span>
+                      <span style={{color:"#ffffffcc",fontSize:11,fontWeight:500,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.name}</span>
+                      <span style={{color:col,fontWeight:800,fontSize:10,whiteSpace:"nowrap"}}>{lbl}</span>
+                    </span>);
+                  })}
+                </div>
+              </div>
+            </div>
+            <style>{`@keyframes dday-scroll{0%{transform:translateX(0)}100%{transform:translateX(-33.33%)}}`}</style>
+          </div>
+        );
+      })()}
 
       {/* 본문 */}
       <div style={{padding:"0 0 48px"}}>
