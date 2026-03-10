@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCuzXZlbmTZJIkaUEZue_Cq22bTtKP9bqI",
@@ -29,6 +29,32 @@
     window.__saveToFirebase = async (events) => {
       try {
         await setDoc(docRef, { list: events, version: "v2026-03", updatedAt: new Date().toISOString() });
+        return true;
+      } catch(e) { return false; }
+    };
+
+    // overrides 문서 (id별 웹 수정사항 보존)
+    const overridesRef = doc(db, "promo", "overrides");
+    window.__overrides = {}; // { [id]: {importance, eventType, targetSales, actualSales, path} }
+    window.__mgrMapping = {}; // { [channel]: { [brand]: manager } }
+
+    // overrides 로드
+    (async () => {
+      try {
+        const snap = await getDoc(overridesRef);
+        if (snap.exists()) {
+          const d = snap.data();
+          window.__overrides = d.fields || {};
+          window.__mgrMapping = d.mgrMapping || {};
+          if (window.__onOverridesLoaded) window.__onOverridesLoaded();
+        }
+      } catch(e) { console.warn("overrides 로드 실패:", e); }
+    })();
+
+    // overrides 저장 (fields + mgrMapping 합쳐서)
+    window.__saveOverrides = async (fields, mgrMapping) => {
+      try {
+        await setDoc(overridesRef, { fields: fields||window.__overrides, mgrMapping: mgrMapping||window.__mgrMapping, updatedAt: new Date().toISOString() });
         return true;
       } catch(e) { return false; }
     };
@@ -1228,10 +1254,20 @@ function ManagerTab({managers,events,saveManagers,saveEvents,bc,chanNames=[]}) {
   const [mapChannel,setMapChannel] = React.useState("자사몰");
   const [mapMgr,setMapMgr] = React.useState("");
   const [mgMapping,setMgMapping] = React.useState(()=>{
+    // Firebase overrides가 이미 로드됐으면 사용, 없으면 localStorage fallback
+    if(window.__mgrMapping && Object.keys(window.__mgrMapping).length > 0) return window.__mgrMapping;
     const saved=loadLS("mgr_mapping_v1",null);
     return saved||{...DEFAULT_MANAGERS};
   });
-  const saveMapping = (m) => { setMgMapping(m); saveLS("mgr_mapping_v1",m); };
+  const saveMapping = (m) => {
+    setMgMapping(m);
+    saveLS("mgr_mapping_v1",m);
+    // Firebase에도 저장
+    if(window.__saveOverrides) {
+      window.__mgrMapping = m;
+      window.__saveOverrides(window.__overrides, m);
+    }
+  };
 
   const addManager = () => {
     const n = newName.trim();
@@ -1400,9 +1436,18 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
 
   const toggleSort = (h) => { if(sortKey===h){setSortDir(d=>d==='asc'?'desc':'asc');}else{setSortKey(h);setSortDir('asc');} };
   const closeCell = () => { setEditCell(null); setCellCal(null); };
+  const OVERRIDE_FIELDS = new Set(["importance","eventType","targetSales","actualSales","path"]);
   const saveCell = (id,field,val) => {
     const next=events.map(x=>x.id===id?{...x,[field]:val}:x);
     if(saveEvents) saveEvents(next); else saveLS(LS_EVENTS,next);
+    // overrides 필드면 Firebase에도 별도 저장
+    if(OVERRIDE_FIELDS.has(field) && window.__saveOverrides) {
+      const ov = {...(window.__overrides||{})};
+      const key = String(id);
+      ov[key] = {...(ov[key]||{}), [field]: val};
+      window.__overrides = ov;
+      window.__saveOverrides(ov, window.__mgrMapping);
+    }
     return next;
   };
 
@@ -2040,6 +2085,30 @@ function App() {
 
   // Firebase 실시간 연동
   React.useEffect(() => {
+    // overrides 로드 완료 콜백 - 이미 events가 있으면 overrides 재적용
+    window.__onOverridesLoaded = () => {
+      setEvents(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const ov = window.__overrides || {};
+        const mg = window.__mgrMapping || {};
+        return prev.map(ev => {
+          const o = ov[String(ev.id)] || {};
+          let manager = ev.manager;
+          if (!manager && mg[ev.channel] && mg[ev.channel][ev.brand]) {
+            manager = mg[ev.channel][ev.brand];
+          }
+          return {
+            ...ev,
+            manager,
+            ...(o.importance !== undefined ? { importance: o.importance } : {}),
+            ...(o.eventType !== undefined ? { eventType: o.eventType } : {}),
+            ...(o.targetSales !== undefined ? { targetSales: o.targetSales } : {}),
+            ...(o.actualSales !== undefined ? { actualSales: o.actualSales } : {}),
+            ...(o.path !== undefined ? { path: o.path } : {}),
+          };
+        });
+      });
+    };
     // Firebase에서 받은 데이터가 PRESET과 다를 때만 적용
     window.__setFbEvents = (data) => {
       const list = data.list || data;
@@ -2049,9 +2118,32 @@ function App() {
         saveLS(LS_EVENTS, PRESET_EVENTS);
         return;
       }
-      console.log("Firebase 데이터 적용: " + list.length + "건");
-      setEvents(list);
-      saveLS(LS_EVENTS, list);
+      // overrides + 담당자 매칭 병합
+      const applyOverrides = (evList) => {
+        const ov = window.__overrides || {};
+        const mg = window.__mgrMapping || {};
+        return evList.map(ev => {
+          const o = ov[String(ev.id)] || {};
+          // 담당자: 비어있으면 mgMapping에서 자동 매칭
+          let manager = ev.manager;
+          if (!manager && mg[ev.channel] && mg[ev.channel][ev.brand]) {
+            manager = mg[ev.channel][ev.brand];
+          }
+          return {
+            ...ev,
+            manager,
+            ...(o.importance !== undefined ? { importance: o.importance } : {}),
+            ...(o.eventType !== undefined ? { eventType: o.eventType } : {}),
+            ...(o.targetSales !== undefined ? { targetSales: o.targetSales } : {}),
+            ...(o.actualSales !== undefined ? { actualSales: o.actualSales } : {}),
+            ...(o.path !== undefined ? { path: o.path } : {}),
+          };
+        });
+      };
+      const merged = applyOverrides(list);
+      console.log("Firebase 데이터 적용: " + merged.length + "건");
+      setEvents(merged);
+      saveLS(LS_EVENTS, merged);
       // updatedAt 파싱해서 저장
       if (data.updatedAt) {
         try {
@@ -2191,7 +2283,10 @@ function App() {
       if(!grouped[key]) grouped[key]=[];
       grouped[key].push(ev);
     });
-    const chOrder=channels.map(c=>c.name);
+    // 전채널 목록: channels + MKT + 전채널 포함
+    const chOrder=[...channels.map(c=>c.name)];
+    if(!chOrder.includes("MKT")) chOrder.push("MKT");
+    if(!chOrder.includes("전채널")) chOrder.push("전채널");
     let text="";
     chOrder.forEach(ch=>{
       DEFAULT_BRANDS.forEach(br=>{
@@ -2200,7 +2295,7 @@ function App() {
         const evs=grouped[key];
         if(!evs||evs.length===0) return;
         text+=`[${br} · ${ch}]\n`;
-        evs.slice().sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name)).forEach(ev=>{
+        evs.slice().sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name)).slice(0,7).forEach(ev=>{
           const s=parseDt(ev.startDate),e2=parseDt(ev.endDate);
           const fmt2=d=>`${d.getMonth()+1}/${d.getDate()}일(${WEEK[d.getDay()]})`;
           const range=s&&e2?`${fmt2(s)} ~ ${fmt2(e2)}`:"";
@@ -2422,7 +2517,7 @@ function App() {
             <div style={{background:`linear-gradient(135deg,${bc.tag},${bc.border}99)`,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div>
                 <div style={{fontWeight:800,fontSize:15,color:"#fff"}}>주간회의 자료</div>
-                <div style={{fontSize:10,color:"#ffffffaa",marginTop:2}}>진행중 + 31일 이내 예정 · 채널별 최대 5건</div>
+                <div style={{fontSize:10,color:"#ffffffaa",marginTop:2}}>진행중 + 31일 이내 예정 · 채널별 최대 7건</div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={copyWeekly} style={{background:copied?"#27ae60":"#fff",color:copied?"#fff":bc.tag,border:"none",borderRadius:8,padding:"7px 16px",fontWeight:800,fontSize:13,cursor:"pointer",transition:"all 0.2s"}}>
