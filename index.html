@@ -138,6 +138,8 @@ function applySalesData(data) {
       }
     }
     console.log("✅ 실적 데이터 Firebase 로드 완료");
+    // React 리렌더 트리거 (전역 let 변수 변경 후 강제 갱신)
+    if (window.__onSalesApplied) window.__onSalesApplied();
   } catch(e) {
     console.warn("실적 데이터 적용 실패:", e);
   }
@@ -1133,7 +1135,7 @@ function ChannelDashboard({channel,events,brand,bc,jasaMemos,saveJasaMemo,channe
 
         {/* 달성률 */}
         <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"16px 20px"}}>
-          <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:14}}>{channel} 행사 달성률</div>
+          <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:14}}>{channel} 달성률</div>
           {cbTgt>0||cbAct>0?<AchBar label="CT (시티브리즈)" target={cbTgt} actual={cbAct} color="#4f6ef7"/>:<div style={{fontSize:11,color:"#ccc",marginBottom:8}}>시티브리즈 - 목표 미설정</div>}
           {atTgt>0||atAct>0?<AchBar label="아티드" target={atTgt} actual={atAct} color="#e67e22"/>:<div style={{fontSize:11,color:"#ccc"}}>아티드 - 목표 미설정</div>}
         </div>
@@ -1997,7 +1999,7 @@ function KPIBanner({events,brand,bc,chanNames,viewMonth}) {
       <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
         {chanAchieve.length>0&&(
           <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"18px 20px",flex:"1 1 240px"}}>
-            <div style={{fontSize:10,fontWeight:800,color:"#aaa",letterSpacing:1.5,marginBottom:12}}>채널별 행사 달성률</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#aaa",letterSpacing:1.5,marginBottom:12}}>채널별 달성률</div>
             <div style={{display:"flex",flexDirection:"column",gap:9}}>
               {chanAchieve.map(({ch,tgt,act,rate,c})=>{
                 const rc=rate>=100?"#27ae60":rate>=80?"#f4a233":"#e53935";
@@ -2163,7 +2165,11 @@ function App() {
   }, []);
 
   // 실적 데이터 Firebase 로드 (앱 시작 시 1회)
-  React.useEffect(() => { loadSalesFromFirebase(); }, []);
+  const [salesVer, setSalesVer] = useState(0); // 실적 로드 완료 시 리렌더 트리거
+  React.useEffect(() => {
+    window.__onSalesApplied = () => setSalesVer(v => v + 1);
+    loadSalesFromFirebase();
+  }, []);
   const [channels,setChannels] = useState(()=>loadLS(LS_CHANNELS,DEFAULT_CHANNELS));
   const [brand,setBrand] = useState("전체");
   const [viewMonth,setViewMonth] = useState(0);
@@ -2428,6 +2434,7 @@ function App() {
                 channel={["자사몰","29CM","W컨셉","무신사","지그재그"][viewMonth-15]}
                 events={events} brand={brand} bc={bc}
                 jasaMemos={jasaMemos} saveJasaMemo={saveJasaMemo}
+                salesVer={salesVer}
                 channelStrats={channelStrats} setChannelStrats={setChannelStrats} saveStrat={saveStrat}/>
             : viewMonth===14
             ? <ManagerTab managers={managers} events={events} saveManagers={saveManagers} saveEvents={saveEvents} bc={bc} chanNames={chanNames}/>
