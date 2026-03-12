@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCuzXZlbmTZJIkaUEZue_Cq22bTtKP9bqI",
@@ -33,32 +33,6 @@
       } catch(e) { return false; }
     };
 
-    // overrides 문서 (id별 웹 수정사항 보존)
-    const overridesRef = doc(db, "promo", "overrides");
-    window.__overrides = {}; // { [id]: {importance, eventType, targetSales, actualSales, path} }
-    window.__mgrMapping = {}; // { [channel]: { [brand]: manager } }
-
-    // overrides 로드
-    (async () => {
-      try {
-        const snap = await getDoc(overridesRef);
-        if (snap.exists()) {
-          const d = snap.data();
-          window.__overrides = d.fields || {};
-          window.__mgrMapping = d.mgrMapping || {};
-          if (window.__onOverridesLoaded) window.__onOverridesLoaded();
-        }
-      } catch(e) { console.warn("overrides 로드 실패:", e); }
-    })();
-
-    // overrides 저장 (fields + mgrMapping 합쳐서)
-    window.__saveOverrides = async (fields, mgrMapping) => {
-      try {
-        await setDoc(overridesRef, { fields: fields||window.__overrides, mgrMapping: mgrMapping||window.__mgrMapping, updatedAt: new Date().toISOString() });
-        return true;
-      } catch(e) { return false; }
-    };
-
     // Firebase 실시간 수신 - 단 PRESET과 건수 같으면 PRESET 우선
     window.__fbReady = false;
     onSnapshot(docRef, (snap) => {
@@ -67,21 +41,6 @@
         window.__setFbEvents(snap.data()); // version 포함 전달
       }
     });
-
-    // promo/sales SDK 방식 로드 → window.__salesData에 저장
-    window.__salesData = null;
-    (async () => {
-      try {
-        const salesRef = doc(db, "promo", "sales");
-        const salesSnap = await getDoc(salesRef);
-        if (salesSnap.exists()) {
-          window.__salesData = salesSnap.data();
-          if (window.__onSalesLoaded) window.__onSalesLoaded(window.__salesData);
-        }
-      } catch(e) {
-        console.warn("실적 Firebase 로드 실패:", e);
-      }
-    })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -100,60 +59,8 @@
 const { useState, useEffect, useRef } = React;
 const PRESET_EVENTS = [{"brand":"시티브리즈","channel":"29CM","name":"매출대응 10% 쿠폰(1/1~1/4)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-04","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":1},{"brand":"아티드","channel":"29CM","name":"매출대응 10% 쿠폰(1/1~1/4)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-04","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":2},{"brand":"시티브리즈","channel":"29CM","name":"신년맞이 브랜드뉴스 5%쿠폰 (1/5~1/11)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"5%쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":3},{"brand":"시티브리즈","channel":"29CM","name":"FW시즌오프 기획전(1/5~1/14)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-14","coupon":"14% 쿠폰 / 4.5만원 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":4},{"brand":"시티브리즈","channel":"29CM","name":"릴레이 브랜드 세일(1/5)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-05","coupon":"20% 쿠폰 (5:5)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":5},{"brand":"아티드","channel":"29CM","name":"신년맞이 브랜드뉴스 (1/5~1/11)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":6},{"brand":"시티브리즈","channel":"29CM","name":"니트 72시간 특가","eventType":"기획전","startDate":"2026-01-08","endDate":"2026-01-11","coupon":"~70% 할인","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":7},{"brand":"시티브리즈","channel":"29CM","name":"릴레이 브랜드 세일(1/11)","eventType":"기획전","startDate":"2026-01-11","endDate":"2026-01-11","coupon":"20% 쿠폰 (5:5)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":8},{"brand":"시티브리즈","channel":"29CM","name":"스오 부스팅 브랜드뉴스(1/12~1/25)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":9},{"brand":"시티브리즈","channel":"29CM","name":"스페셜오더(1/12~1/25)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-25","coupon":"캐시미어 솔리스 브이넥 니트 30% + 20% 쿠폰(브랜드 부담) - 단독가","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":10},{"brand":"아티드","channel":"29CM","name":"72시간 특가 / 시즌오프","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-14","coupon":"50%할인 + 10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":11},{"brand":"시티브리즈","channel":"29CM","name":"새해 맞이 기획전(1/15~1/28) 14% 쿠폰","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-28","coupon":"14% 쿠폰 / 4만원 쿠폰(20만원 이상) / 10% 이상 브랜드 쿠폰 발급 필수 / 10% 이상 브랜드 쿠폰 발급 필수","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":12},{"brand":"아티드","channel":"29CM","name":"새해 맞이 기획전(1/15~1/28)","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-28","coupon":"10%쿠폰 / 10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":13},{"brand":"시티브리즈","channel":"29CM","name":"주말특가(1/16~1/18)","eventType":"기획전","startDate":"2026-01-16","endDate":"2026-01-18","coupon":"울 하이넥 더플 코트 25%","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 세론 숏 덕다운 50%","path":"","id":14},{"brand":"시티브리즈","channel":"29CM","name":"릴레이 브랜드 세일(1/19) 10% 쿠폰","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-19","coupon":"10% 이상 브랜드 쿠폰 발급 필수","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":15},{"brand":"아티드","channel":"29CM","name":"브랜드데이 (1/20일) 10%쿠폰","eventType":"기획전","startDate":"2026-01-20","endDate":"2026-01-27","coupon":"10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":16},{"brand":"시티브리즈","channel":"29CM","name":"주말특가(1/23~1/25)","eventType":"기획전","startDate":"2026-01-23","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":17},{"brand":"시티브리즈","channel":"29CM","name":"릴레이 브랜드 세일(1/26) 10% 쿠폰","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-01-26","coupon":"10% 이상 브랜드 쿠폰 발급 필수","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":18},{"brand":"아티드","channel":"29CM","name":"브랜드데이 (1/28일) 10%쿠폰","eventType":"기획전","startDate":"2026-01-28","endDate":"2026-01-28","coupon":"10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":19},{"brand":"시티브리즈","channel":"29CM","name":"29DAY(1/29)","eventType":"기획전","startDate":"2026-01-29","endDate":"2026-01-29","coupon":"29% 쿠폰 (6:4부담)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 캐시미어 솔리스 브이넥 니트만 (29CM 전체 부담) 이라 30% 할인 진행","path":"","id":20},{"brand":"시티브리즈","channel":"29CM","name":"연휴 준비 기획전(2/2~2/11) 14% 쿠폰","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-11","coupon":"14% 장바구니 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":21},{"brand":"시티브리즈","channel":"29CM","name":"연휴 준비 기획전 브랜드위크(2/2 10시 ~2/7 10시)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-07","coupon":"(날짜미확정)하루 20% 쿠폰 (5:5)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":22},{"brand":"시티브리즈","channel":"29CM","name":"포커스기획전(2/2~2/9)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-09","coupon":"26SS 일주일 단독 선발매 (5 ST)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 전상품 단독, 최저가 / [비고] 브랜드 10% 쿠폰 발행","path":"","id":23},{"brand":"아티드","channel":"29CM","name":"26SS 1차 단독 기획전(2/2일 ~ 2/8일)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":24},{"brand":"시티브리즈","channel":"29CM","name":"설연휴 거래액 대응 기획전(2/12~2/18)","eventType":"기획전","startDate":"2026-02-12","endDate":"2026-02-18","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":25},{"brand":"시티브리즈","channel":"29CM","name":"29패션위크(3/9~3/22)","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-22","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":26},{"brand":"시티브리즈","channel":"EQL","name":"WHITE WEEK 1차(1/13~1/20)","eventType":"기획전","startDate":"2026-01-13","endDate":"2026-01-20","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":27},{"brand":"시티브리즈","channel":"EQL","name":"나이스 투 밋 뉴(1/19 11시 ~ 1/25 자정)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"1/19 11:00~1/20 11:00 24시간 30% 쿠폰 발행 (브랜드 50%, EQL 50% 부담)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 1/20 11:01~1/25 23:59 6일 중복 3% 쿠폰 발행 (EQL 100% 부담) / [비고] 단독 할인율로 제출","path":"","id":28},{"brand":"시티브리즈","channel":"EQL","name":"WHITE WEEK 2차(1/20~1/27)","eventType":"기획전","startDate":"2026-01-20","endDate":"2026-01-27","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 전사 기획전 할인율로 제출","path":"","id":29},{"brand":"시티브리즈","channel":"EQL","name":"WHITE WEEK 3차(1/27~2/2)","eventType":"기획전","startDate":"2026-01-27","endDate":"2026-02-02","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 전사 기획전 할인율로 제출","path":"","id":30},{"brand":"시티브리즈","channel":"EQL","name":"화이트위크 특가 (1/30(금) 11:00 -  2/2 (월) 23:59)","eventType":"기획전","startDate":"2026-01-30","endDate":"2026-02-02","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 단독 할인율로 제출","path":"","id":31},{"brand":"시티브리즈","channel":"EQL","name":"굿바이 시즌오프(2/4~2/11)","eventType":"기획전","startDate":"2026-02-04","endDate":"2026-02-11","coupon":"- 30만원 이상 구매 시 18% 장바구니 쿠폰 (최대 할인 금액 10만원)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] - 전 카테고리 15% 장바구니 쿠폰 (최대 할인 금액 10만원)","path":"","id":32},{"brand":"시티브리즈","channel":"EQL","name":"설세일(2/12~2/22)","eventType":"기획전","startDate":"2026-02-12","endDate":"2026-02-22","coupon":"- 모닝 중복 6% 쿠폰( 최대 3만원, 7~11시 발급),  기본 16% 장바구니 쿠폰 (최대 할인 금액 8만원)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":33},{"brand":"시티브리즈","channel":"EQL","name":"2QL DAYS (2/22~2/25)","eventType":"기획전","startDate":"2026-02-22","endDate":"2026-02-25","coupon":"★ 쿠폰 22% (EQL 50% : 브랜드 50%)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":34},{"brand":"시티브리즈","channel":"EQL","name":"클리어런스(2/24~3/2)","eventType":"기획전","startDate":"2026-02-24","endDate":"2026-03-02","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":35},{"brand":"시티브리즈","channel":"EQL","name":"우먼스위크(3/4~3/10)","eventType":"기획전","startDate":"2026-03-04","endDate":"2026-03-10","coupon":"EQL 24시 (3/5 10시 ~ 3/6 10시)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 전상품 최저가 확보 필수 / [비고] : 일 매출 5천 이상 목표 구좌이며 마케팅 지원들어가는 단독 최대 푸시 기획전","path":"","id":36},{"brand":"시티브리즈","channel":"EQL","name":"이퀄쇼(3/18~3/31)","eventType":"기획전","startDate":"2026-03-18","endDate":"2026-03-31","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":37},{"brand":"시티브리즈","channel":"EQL","name":"반소매 기획전(1차-4/22~4/29)","eventType":"기획전","startDate":"2026-04-22","endDate":"2026-04-29","coupon":"시티브리즈 1착장 컨텐츠 촬영 노출 진행","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 브리즈 인 시티 반팔 티셔츠 + ㅇㅇ / [비고] - 위 상품들 일주일 간 무조건 단독할인 필요 / 매출 효율 위해 이외 베스트템도 EQL 할인율 집중 필요","path":"","id":38},{"brand":"시티브리즈","channel":"EQL","name":"반소매 기획전(2차-4/29~5/5)","eventType":"기획전","startDate":"2026-04-29","endDate":"2026-05-05","coupon":"시티브리즈 1착장 컨텐츠 촬영 노출 진행","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 브리즈 인 시티 반팔 티셔츠 + ㅇㅇ / [비고] - 위 상품들 일주일 간 무조건 단독할인 필요 / 매출 효율 위해 이외 베스트템도 EQL 할인율 집중 필요","path":"","id":39},{"brand":"아티드","channel":"하고","name":"입점 72시간 브랜드데이 /  30%쿠폰","eventType":"기획전","startDate":"2026-01-02","endDate":"2026-01-04","coupon":"30%쿠폰 (하고 20 : 브랜드 10)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 20SKU 이내 단독","path":"","id":40},{"brand":"시티브리즈","channel":"하고","name":"라이브(19시)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-12","coupon":"33% 쿠폰 (하고 17 : 브랜드 16)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":41},{"brand":"시티브리즈","channel":"하고","name":"라이브 후 단독전(1/13 10시 ~ 1/19 10시) 20%+10% 쿠폰","eventType":"기획전","startDate":"2026-01-13","endDate":"2026-01-19","coupon":"20% 하고 쿠폰 + 10% 브랜드 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":42},{"brand":"아티드","channel":"하고","name":"오픈하고 (입점 연합전) 40% 쿠폰","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-18","coupon":"참여 조건 : 40% 쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":43},{"brand":"시티브리즈","channel":"하고","name":"베네핏위크(1/26 10시 ~2/2 10시) 25% 쿠폰","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-02","coupon":"전 상품 최대 18% 쿠폰 + 25% 분담 쿠폰 (하고 20% 지원)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":44},{"brand":"시티브리즈","channel":"하고","name":"하고 클리어런스 세일(2/2 10시~2/9 10시) 18% 쿠폰","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-09","coupon":"전 상품 쿠폰팩 2종 (16%, 18%) (하고 100%)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":45},{"brand":"시티브리즈","channel":"하고","name":"베네핏위크(2/25~3/4)","eventType":"기획전","startDate":"2026-02-25","endDate":"2026-03-04","coupon":"전 상품 쿠폰팩 2종 (15%, 18%) + 참여 브랜드 대상 25% 쿠폰 (하고 20% 지원)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":46},{"brand":"시티브리즈","channel":"하고","name":"NEW WEEK WITH HAGO(3/9~3/23)","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-23","coupon":"15% / 18% 쿠폰 (하고 부담)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":47},{"brand":"아티드","channel":"하고","name":"NEW WEEK WITH HAGO(3/9~3/23)","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-23","coupon":"15% / 18% 쿠폰 (하고 부담)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":48},{"brand":"시티브리즈","channel":"하고","name":"(구좌픽스필요)채수빈 26SS 기획전(3/16~3/22)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-22","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":49},{"brand":"아티드","channel":"하고","name":"3월 베네핏위크(3/25이 10:00 ~ 4/1일(수) 10:00)","eventType":"기획전","startDate":"2026-03-25","endDate":"2026-04-01","coupon":"25% 쿠폰 (18:7)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":50},{"brand":"아티드","channel":"하고","name":"뉴시즌 보드 (4/6일 10:00 ~ 4/20일 10:00)","eventType":"기획전","startDate":"2026-04-06","endDate":"2026-04-20","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":51},{"brand":"시티브리즈","channel":"하고","name":"라이브(4/9)","eventType":"기획전","startDate":"2026-04-09","endDate":"2026-04-09","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":52},{"brand":"아티드","channel":"하고","name":"4월 베네핏위크 (4/27일 10:00 ~ 5/4일 10:00)","eventType":"기획전","startDate":"2026-04-27","endDate":"2026-05-04","coupon":"30% 쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":53},{"brand":"시티브리즈","channel":"W컨셉","name":"뉴이어 페스타(1/2~1/12) 30% 쿠폰","eventType":"기획전","startDate":"2026-01-02","endDate":"2026-01-12","coupon":"30% 반반 부담 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":54},{"brand":"시티브리즈","channel":"W컨셉","name":"아우터 하루특가","eventType":"기획전","startDate":"2026-01-02","endDate":"2026-01-02","coupon":"https://www.wconcept.co.kr/Product/307597240","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 20% 할인","path":"","id":55},{"brand":"시티브리즈","channel":"W컨셉","name":"팝업세일(1/4)","eventType":"기획전","startDate":"2026-01-04","endDate":"2026-01-04","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":56},{"brand":"아티드","channel":"W컨셉","name":"재입점 기념 단독 기획전 30%쿠폰","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"50%할인 + 30%쿠폰(5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":57},{"brand":"시티브리즈","channel":"W컨셉","name":"상의 하루특가","eventType":"기획전","startDate":"2026-01-07","endDate":"2026-01-07","coupon":"https://www.wconcept.co.kr/Product/307497043","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 30% 할인","path":"","id":58},{"brand":"시티브리즈","channel":"W컨셉","name":"주말한정 니트 특가(1/9~1/11)","eventType":"기획전","startDate":"2026-01-09","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":59},{"brand":"시티브리즈","channel":"W컨셉","name":"하의 하루특가","eventType":"기획전","startDate":"2026-01-10","endDate":"2026-01-10","coupon":"https://www.wconcept.co.kr/Product/306059345","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 50% 할인","path":"","id":60},{"brand":"시티브리즈","channel":"W컨셉","name":"CT 시즌오프(1/13 10시~1/15 10시) 20% 쿠폰","eventType":"기획전","startDate":"2026-01-13","endDate":"2026-01-15","coupon":"20% 쿠폰 (5:5)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 캐시미어 솔리스 브이넥 니트 15% 할인 필요","path":"","id":61},{"brand":"시티브리즈","channel":"W컨셉","name":"브랜드 포커스데이(1/15 10시 ~ 1/18 24시) 30% 쿠폰","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-18","coupon":"30% 쿠폰 (5:5)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 캐시미어 솔리스 브이넥 니트 10% 할인 필요","path":"","id":62},{"brand":"시티브리즈","channel":"W컨셉","name":"클리어런스 세일(1/19 10시 ~ 2/2 10시)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-22","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":63},{"brand":"시티브리즈","channel":"W컨셉","name":"307674344 시티 스몰 로고 라운드넥 가디건_4COLORS","eventType":"기획전","startDate":"2026-01-21","endDate":"2026-01-21","coupon":"-> 30% 할인","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 306191975 시티 스내피 그래픽 스웨트 셔츠_3COLORS / [비고] -> 70% 할인","path":"","id":64},{"brand":"시티브리즈","channel":"W컨셉","name":"72H 팝업(1/23 10시~1/26 10시) 30% 쿠폰","eventType":"기획전","startDate":"2026-01-23","endDate":"2026-01-25","coupon":"30% 반반쿠폰 / 20% 반반 부담 쿠폰 + 5% 브랜드 더블쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 세일율 = 1/15 포커스데이와 동일","path":"","id":65},{"brand":"아티드","channel":"W컨셉","name":"26SS 1차 선오픈 / 26SS 1차 단독 + 온고잉 일부","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":66},{"brand":"시티브리즈","channel":"W컨셉","name":"루즈핏 사선 절개 싱글 자켓 할인(1/30~2/1)","eventType":"기획전","startDate":"2026-01-30","endDate":"2026-02-01","coupon":"50% 할인","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":67},{"brand":"시티브리즈","channel":"W컨셉","name":"퀸지 기획전 (2/10~2/18) 20% 쿠폰","eventType":"기획전","startDate":"2026-02-10","endDate":"2026-02-18","coupon":"기획전 및 상품 썸네일 활용 가능","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 20% (5:5 부담) 쿠폰","path":"","id":68},{"brand":"시티브리즈","channel":"W컨셉","name":"터닝시즌 캠페인 - 팝업세일(2/10) 30%쿠폰","eventType":"기획전","startDate":"2026-02-10","endDate":"2026-02-10","coupon":"30% (5:5 부담) 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":69},{"brand":"시티브리즈","channel":"W컨셉","name":"설 연휴 기획전(2/12~2/18) 20% 쿠폰","eventType":"기획전","startDate":"2026-02-12","endDate":"2026-02-18","coupon":"20% (5:5 부담) 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 설연휴 빅브랜드 세일 참여 :  빅 브랜드 일부만 노출 진행 / [비고] 목표매출 : 1억","path":"","id":70},{"brand":"시티브리즈","channel":"W컨셉","name":"신학기 & 첫출근 기획전(2/18~2/25)","eventType":"기획전","startDate":"2026-02-18","endDate":"2026-02-25","coupon":"20% (5:5 부담) 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] +5% 더블 쿠폰(더블은 W컨셉 부담)","path":"","id":71},{"brand":"시티브리즈","channel":"W컨셉","name":"10% 더블쿠폰(2/19~2/22 오전 10시)","eventType":"기획전","startDate":"2026-02-19","endDate":"2026-02-22","coupon":"노세일 제외","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":72},{"brand":"아티드","channel":"W컨셉","name":"레디셋스타드(2/19일~2/25일) 30%쿠폰","eventType":"기획전","startDate":"2026-02-19","endDate":"2026-02-21","coupon":"30%쿠폰(5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 브랜드 하이라이트 (2/25일)","path":"","id":73},{"brand":"시티브리즈","channel":"W컨셉","name":"CT 72H 팝업(2/22~2/24)20% 쿠폰+5%더블쿠폰","eventType":"기획전","startDate":"2026-02-22","endDate":"2026-02-24","coupon":"20% (5:5 부담) 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] +5% 더블 쿠폰(더블은 W컨셉 부담)","path":"","id":74},{"brand":"아티드","channel":"W컨셉","name":"26SS 2차 선오픈 (2/22일~3/2일) 30%쿠폰","eventType":"기획전","startDate":"2026-02-22","endDate":"2026-02-25","coupon":"30%쿠폰 (5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 수리 유튜브 브랜디드","path":"","id":75},{"brand":"시티브리즈","channel":"W컨셉","name":"프리쇼(2/23~3/4)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-04","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":76},{"brand":"시티브리즈","channel":"W컨셉","name":"슈스스TV 연계 스타일리스트 PICK 기획전(2/23~3/1) 20% 쿠폰","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-01","coupon":"신학기 72H 팝업이랑 세일과 쿠폰율 동일하게 하기","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 20% (5:5 부담) 쿠폰","path":"","id":77},{"brand":"아티드","channel":"W컨셉","name":"프리쇼(2/23~3/4)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-04","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":78},{"brand":"시티브리즈","channel":"W컨셉","name":"캐주얼 통합 라이브(2/24)","eventType":"기획전","startDate":"2026-02-24","endDate":"2026-02-24","coupon":"시티브리즈 2착장 진행","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 착장 상품들은 신상노세일이어도 하루 20% 쿠폰 진행","path":"","id":79},{"brand":"시티브리즈","channel":"W컨셉","name":"김도라 릴스 기획전(3/2-3/8) 20% 쿠폰","eventType":"기획전","startDate":"2026-03-02","endDate":"2026-03-08","coupon":"20% 분담 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 영상, 성명권만 활용 O  / 이미지 없음","path":"","id":80},{"brand":"아티드","channel":"W컨셉","name":"WEDIT 연합전(3/4일~3/10일) 30%쿠폰","eventType":"기획전","startDate":"2026-03-04","endDate":"2026-03-10","coupon":"30%쿠폰(5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":81},{"brand":"시티브리즈","channel":"W컨셉","name":"보라끌레르 기획전 (3/8~3/15) 30% 쿠폰","eventType":"기획전","startDate":"2026-03-08","endDate":"2026-03-15","coupon":"일주일 내내 30% 쿠폰 가능(2/5 용주팀장님 채팅)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] - 신상 노세일은 쿠폰 제외(- 원래 3/9였는데 하루 앞당김) / [비고] 3/8 하루 좋은 구좌(브랜드 포커스데이) (목표액이 일 2억)","path":"","id":82},{"brand":"시티브리즈","channel":"W컨셉","name":"포커스데이(3/8)","eventType":"기획전","startDate":"2026-03-08","endDate":"2026-03-08","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":83},{"brand":"아티드","channel":"W컨셉","name":"가방위크(3/9일~3/15일)","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-15","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":84},{"brand":"시티브리즈","channel":"W컨셉","name":"여울 기획전(3/16~3/22)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-22","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":85},{"brand":"시티브리즈","channel":"W컨셉","name":"스프링위크(3/16(월)10:00 ~ 3/30(월) 10:00) 30% 쿠폰","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-19","coupon":"30% 분담 쿠폰으로 진행 - 용주팀장님 픽스 (2/25)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 신상 주력 0% 할인에 쿠폰 적용 O / 노세일은 쿠폰 적용 X","path":"","id":86},{"brand":"아티드","channel":"W컨셉","name":"26SS 3차 선오픈 (3/16일 ~ 3/22일) 20% 쿠폰","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-22","coupon":"20% 쿠폰(5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":87},{"brand":"아티드","channel":"W컨셉","name":"스프링위크( 3/16(월)10:00 ~ 3/30(월) 10:00)30%쿠폰","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-30","coupon":"30%쿠폰 (5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":88},{"brand":"아티드","channel":"W컨셉","name":"퀸지 릴스 기획전 (3/17일~3/31일)","eventType":"기획전","startDate":"2026-03-17","endDate":"2026-03-31","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":89},{"brand":"시티브리즈","channel":"W컨셉","name":"하루특가(3/20 10시 ~ 3/21 10시)","eventType":"기획전","startDate":"2026-03-20","endDate":"2026-03-20","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":90},{"brand":"시티브리즈","channel":"W컨셉","name":"채수빈 26SS 기획전(3/23~3/29)","eventType":"기획전","startDate":"2026-03-23","endDate":"2026-03-29","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":91},{"brand":"아티드","channel":"W컨셉","name":"슈스스 TV 기획전 (3/23일~3/31일) 30%쿠폰","eventType":"기획전","startDate":"2026-03-23","endDate":"2026-03-31","coupon":"30%쿠폰 (5:5)","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":92},{"brand":"시티브리즈","channel":"W컨셉","name":"하루특가(3/29 10시 ~ 3/30 10시)","eventType":"기획전","startDate":"2026-03-29","endDate":"2026-03-30","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":93},{"brand":"아티드","channel":"W컨셉","name":"랜더스데이(4/1일~4-12일)","eventType":"기획전","startDate":"2026-04-01","endDate":"2026-04-12","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":94},{"brand":"아티드","channel":"W컨셉","name":"꼬민지 릴스 (4/1일~4-12일)","eventType":"기획전","startDate":"2026-04-01","endDate":"2026-04-05","coupon":"20%쿠폰 조율","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":95},{"brand":"시티브리즈","channel":"W컨셉","name":"(구좌픽스필요) 앨리스펑크(4/5~4/12)","eventType":"기획전","startDate":"2026-04-05","endDate":"2026-04-12","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":96},{"brand":"아티드","channel":"W컨셉","name":"26HS 1차 선오픈(4/6일~4/12일)","eventType":"기획전","startDate":"2026-04-06","endDate":"2026-04-12","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":97},{"brand":"아티드","channel":"W컨셉","name":"연지감성 유튜브 브랜디드 (4/8일~4/19일)","eventType":"기획전","startDate":"2026-04-08","endDate":"2026-04-19","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":98},{"brand":"시티브리즈","channel":"W컨셉","name":"(구좌픽스필요)퀸지(4/20~4/26)","eventType":"기획전","startDate":"2026-04-20","endDate":"2026-04-26","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":99},{"brand":"아티드","channel":"W컨셉","name":"26HS 2차 선오픈(4/20일~4/26일)","eventType":"기획전","startDate":"2026-04-20","endDate":"2026-04-26","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":100},{"brand":"아티드","channel":"W컨셉","name":"26HS 3차 선오픈 (5/5일~5/11일)","eventType":"기획전","startDate":"2026-05-05","endDate":"2026-05-11","coupon":"쿠폰 조율","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":101},{"brand":"아티드","channel":"W컨셉","name":"퀸지 릴스 기획전 (5/5일 ~ 5/17일)","eventType":"기획전","startDate":"2026-05-05","endDate":"2026-05-17","coupon":"","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":102},{"brand":"아티드","channel":"네이버","name":"슈퍼적립","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-31","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[비고] https://shopping.naver.com/super-point/home","path":"","id":103},{"brand":"시티브리즈","channel":"네이버","name":"단독 기획전(1/5~1/11)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":104},{"brand":"아티드","channel":"네이버","name":"연합 라이브","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":105},{"brand":"시티브리즈","channel":"네이버","name":"단독 기획전(1/26~2/1)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":106},{"brand":"시티브리즈","channel":"네이버","name":"2026 신년 세일(1/26~2/8)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":107},{"brand":"아티드","channel":"네이버","name":"네이버 트렌드 패션 2026 신년 세일 (1/26 - 2/8)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":108},{"brand":"아티드","channel":"네이버","name":"설+세일 (1/28 - 2/12)","eventType":"기획전","startDate":"2026-01-28","endDate":"2026-02-12","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":109},{"brand":"시티브리즈","channel":"네이버","name":"오늘의 팝업 (1/30~1/31)","eventType":"기획전","startDate":"2026-01-30","endDate":"2026-01-31","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":110},{"brand":"아티드","channel":"네이버","name":"슈퍼특가 (2/1 - 2/28)","eventType":"기획전","startDate":"2026-02-01","endDate":"2026-02-28","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":111},{"brand":"아티드","channel":"네이버","name":"오늘끝딜 (2/9 - 2/15)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-15","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":112},{"brand":"아티드","channel":"네이버","name":"HAPPY LONG WEEKEND (2/12 - 2/18)","eventType":"기획전","startDate":"2026-02-12","endDate":"2026-02-18","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":113},{"brand":"시티브리즈","channel":"네이버","name":"스프링프리뷰 (2/23~3/1)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-01","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":114},{"brand":"아티드","channel":"네이버","name":"단독 라이브 프로모션 (2/23 - 3/1)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-01","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":115},{"brand":"아티드","channel":"네이버","name":"단독 라이브","eventType":"기획전","startDate":"2026-02-24","endDate":"2026-02-24","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":116},{"brand":"아티드","channel":"네이버","name":"아티드 단독 기획전 희망(3/23 - 3/29)","eventType":"기획전","startDate":"2026-03-23","endDate":"2026-03-29","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":117},{"brand":"시티브리즈","channel":"드립","name":"하의 기획전(1/19~2/1)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":118},{"brand":"시티브리즈","channel":"드립","name":"애슬레저 기획전(1/26~2/8)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":119},{"brand":"시티브리즈","channel":"드립","name":"반해또 기획전(1/26~2/8)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":120},{"brand":"아티드","channel":"롯데온","name":"홈메인딜","eventType":"기획전","startDate":"2026-01-10","endDate":"2026-01-11","coupon":"수수료 16%","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":121},{"brand":"아티드","channel":"롯데온","name":"디자이너쇼룸","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-18","coupon":"수수료 16%","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":122},{"brand":"아티드","channel":"롯데온","name":"포커스브랜드 (1/15 - 1/16)","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-16","coupon":"수수료 25%","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 전면 팝업, 롯데온 앱푸시/카플친, 홈메인 빌보드배너, 슬라이딩 팝업, 홈메인딜구좌, 외부광고, 검색창 텍스트, 플로팅 배너, 패션탭 빌보드","path":"","id":123},{"brand":"아티드","channel":"롯데온","name":"클리어런스 2차 (1/19 - 1/25)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":124},{"brand":"아티드","channel":"롯데온","name":"클리어런스 3차(1/26 - 2/1)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":125},{"brand":"아티드","channel":"롯데온","name":"패션 퍼스트 위크 (2/1 - 2/8)","eventType":"기획전","startDate":"2026-02-01","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":126},{"brand":"아티드","channel":"롯데온","name":"홈메인딜","eventType":"기획전","startDate":"2026-02-06","endDate":"2026-02-06","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":127},{"brand":"아티드","channel":"롯데온","name":"원더브랜드 (2/16-2/22)","eventType":"기획전","startDate":"2026-02-16","endDate":"2026-02-22","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":128},{"brand":"아티드","channel":"롯데온","name":"롯데온 1DAY 단독","eventType":"기획전","startDate":"2026-03-06","endDate":"2026-03-06","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":129},{"brand":"아티드","channel":"MKT","name":"W컨셉 / 퀸지 (18.4만)","eventType":"마케팅","startDate":"2026-01-06","endDate":"2026-01-06","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"40425000","actualSales":"76485570","note":"[컨텐츠] 인스타그램 릴스 / [비용] 5,775,000원","path":"","id":130},{"brand":"아티드","channel":"MKT","name":"W컨셉 / 피한아 (1.5만)","eventType":"마케팅","startDate":"2026-01-06","endDate":"2026-01-06","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"3384500","actualSales":"21593200","note":"[컨텐츠] 인스타그램 릴스 / [비용] 483,500원","path":"","id":131},{"brand":"아티드","channel":"MKT","name":"자사몰 / 쏘머 (1.8만)","eventType":"마케팅","startDate":"2026-01-22","endDate":"2026-01-22","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"2030700","actualSales":"183200","note":"[컨텐츠] 인스타그램 릴스 / [비용] 290,100원","path":"","id":132},{"brand":"시티브리즈","channel":"MKT","name":"미정 / 조유영","eventType":"마케팅","startDate":"2026-01-23","endDate":"2026-01-23","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 협찬 / 숏츠 미러링","path":"","id":133},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 꼬민지 (13.3만)","eventType":"마케팅","startDate":"2026-01-26","endDate":"2026-01-26","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"53900000","actualSales":"32344800","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 7,700,000원","path":"","id":134},{"brand":"시티브리즈","channel":"MKT","name":"자사몰 / 노유 (5.7만)","eventType":"마케팅","startDate":"2026-01-26","endDate":"2026-01-26","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"13538000","actualSales":"7615500","note":"[컨텐츠] 인스타그램 릴스 / [비용] 400만원 / 1월 200+ 3월 200","path":"","id":135},{"brand":"아티드","channel":"MKT","name":"W컨셉 / 지뚜니 (7.5만)","eventType":"마케팅","startDate":"2026-01-26","endDate":"2026-01-26","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"16922500","actualSales":"28534030","note":"[컨텐츠] 인스타그램 릴스 / [비용] 2,417,500원","path":"","id":136},{"brand":"아티드","channel":"MKT","name":"W컨셉 / 퀸지 (18.4만)","eventType":"마케팅","startDate":"2026-01-27","endDate":"2026-01-27","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 5,390,000원","path":"","id":137},{"brand":"아티드","channel":"MKT","name":"미정 / 정인 (4.2만)","eventType":"마케팅","startDate":"2026-01-30","endDate":"2026-01-30","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 협찬","path":"","id":138},{"brand":"시티브리즈","channel":"MKT","name":"자사몰 / 예진 (4.1만)","eventType":"마케팅","startDate":"2026-02-02","endDate":"2026-02-02","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"14891800","actualSales":"3120500","note":"[컨텐츠] 인스타그램 릴스 / [비용] 2,127,400원","path":"","id":139},{"brand":"시티브리즈","channel":"MKT","name":"무신사 / 소희 (4.7만)","eventType":"마케팅","startDate":"2026-02-09","endDate":"2026-02-09","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 1,547,200원","path":"","id":140},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 퀸지 (18.4만)","eventType":"마케팅","startDate":"2026-02-10","endDate":"2026-02-10","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"40425000","actualSales":"34291480","note":"[컨텐츠] 인스타그램 릴스 / [비용] 5,775,000원","path":"","id":141},{"brand":"시티브리즈","channel":"MKT","name":"29CM / 연지감성 (2.8만)","eventType":"마케팅","startDate":"2026-02-11","endDate":"2026-02-11","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 3,384,500원","path":"","id":142},{"brand":"시티브리즈","channel":"MKT","name":"미정 / 슈스스TV (52.4만)","eventType":"마케팅","startDate":"2026-02-23","endDate":"2026-02-23","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 26,400,000원","path":"","id":143},{"brand":"아티드","channel":"MKT","name":"29CM / 꼬민지 (13.5만)","eventType":"마케팅","startDate":"2026-02-23","endDate":"2026-02-23","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 조율중","path":"","id":144},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 김도라 (1.6만)","eventType":"마케팅","startDate":"2026-03-02","endDate":"2026-03-02","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"2800000","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 386,800원","path":"","id":145},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 보라끌레르 (76.4만)","eventType":"마케팅","startDate":"2026-03-09","endDate":"2026-03-09","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 55,000,000원","path":"","id":146},{"brand":"아티드","channel":"MKT","name":"29CM / 알로하 (19.9만)","eventType":"마케팅","startDate":"2026-03-11","endDate":"2026-03-11","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 8,250,000원","path":"","id":147},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 여울 (12만)","eventType":"마케팅","startDate":"2026-03-16","endDate":"2026-03-16","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"38500000","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 5,995,400원","path":"","id":148},{"brand":"시티브리즈","channel":"MKT","name":"지그재그 / 임마멜 (9.75만)","eventType":"마케팅","startDate":"2026-03-20","endDate":"2026-03-20","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 6,820,000원","path":"","id":149},{"brand":"시티브리즈","channel":"MKT","name":"자사몰 / 노유 (5.7만)","eventType":"마케팅","startDate":"2026-03-23","endDate":"2026-03-23","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"14000000","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 1,934,000원","path":"","id":150},{"brand":"아티드","channel":"MKT","name":"29CM / 슈스스 (52.4만)","eventType":"마케팅","startDate":"2026-03-23","endDate":"2026-03-23","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 조율중","path":"","id":151},{"brand":"시티브리즈","channel":"MKT","name":"W컨셉 / 앨리스펑크 (80.1만)","eventType":"마케팅","startDate":"2026-04-05","endDate":"2026-04-05","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 유튜브 브랜디드 / [비용] 62,333,334원","path":"","id":152},{"brand":"시티브리즈","channel":"MKT","name":"지그재그 / 별밤 (17.1만)","eventType":"마케팅","startDate":"2026-04-13","endDate":"2026-04-13","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"14000000","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 1,934,000원","path":"","id":153},{"brand":"시티브리즈","channel":"MKT","name":"미정 / 꼬민지 (21.7만)","eventType":"마케팅","startDate":"2026-10-05","endDate":"2026-10-05","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[컨텐츠] 인스타그램 릴스 / [비용] 6,600,000원","path":"","id":154},{"brand":"시티브리즈","channel":"무신사","name":"멤버스데이 20% 쿠폰(1/1~1/3)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-03","coupon":"20% 반반 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":155},{"brand":"시티브리즈","channel":"무신사","name":"여성 굿바이 2025(1/1~1/16)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-16","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":156},{"brand":"시티브리즈","channel":"무신사","name":"인기 아우터 큐레이션(1/5~1/11)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":157},{"brand":"시티브리즈","channel":"무신사","name":"20% 반반부담 쿠폰(1/6~1/11)","eventType":"기획전","startDate":"2026-01-06","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":158},{"brand":"시티브리즈","channel":"무신사","name":"우먼즈 선클리어런스 (1/9~1/18)","eventType":"기획전","startDate":"2026-01-09","endDate":"2026-01-18","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":159},{"brand":"시티브리즈","channel":"무신사","name":"시티브리즈 시즌오프(1/12~1/25) 20% 쿠폰","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-25","coupon":"20% 반반부담 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":160},{"brand":"시티브리즈","channel":"무신사","name":"클리어런스 위크(1/19~1/28)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-28","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 아이코닉 특가 5562693 시티브리즈[울100%]  울 하이넥 더플 코트_2COLORS / [비고] 할인율 30% / 쿠폰 N","path":"","id":161},{"brand":"시티브리즈","channel":"무신사","name":"1월 아울렛 균일가전(1/26~2/1)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-01","coupon":"아울렛 빅배너 노출","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":162},{"brand":"시티브리즈","channel":"무신사","name":"멤버스데이(2/1~2/3) 30% 쿠폰","eventType":"기획전","startDate":"2026-02-01","endDate":"2026-02-03","coupon":"30% 쿠폰 (5:5 부담)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":163},{"brand":"시티브리즈","channel":"무신사","name":"설날 빅세일(2/9 11시~2/19 자정)10% 쿠폰","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-19","coupon":"10% 브랜드 쿠폰","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 1/3 이후 최저가로 진행","path":"","id":164},{"brand":"시티브리즈","channel":"무신사","name":"애프터 세일(2/20 00시~2/25 자정)","eventType":"기획전","startDate":"2026-02-20","endDate":"2026-02-25","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":165},{"brand":"시티브리즈","channel":"무신사","name":"잡화 페스티벌(2/26 11시~3/5 11시) 쿠폰 7%","eventType":"기획전","startDate":"2026-02-26","endDate":"2026-03-05","coupon":"해당 카테고리 장바구니 쿠폰 7% (브랜드:무신사 7:3 부담)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":166},{"brand":"시티브리즈","channel":"무신사","name":"멤버스데이(3/1~3/3) 10% 쿠폰","eventType":"기획전","startDate":"2026-03-01","endDate":"2026-03-03","coupon":"10% 쿠폰 (노세일 제외)","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":167},{"brand":"아티드","channel":"무신사","name":"멤버스데이(3/1~3/3)","eventType":"기획전","startDate":"2026-03-01","endDate":"2026-03-03","coupon":"10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":168},{"brand":"시티브리즈","channel":"무신사","name":"3월 패션위크(3/4 11시~3/14 11시)","eventType":"기획전","startDate":"2026-03-04","endDate":"2026-03-14","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":169},{"brand":"아티드","channel":"무신사","name":"패션위크(3/4일~3/14일)","eventType":"기획전","startDate":"2026-03-04","endDate":"2026-03-15","coupon":"10%쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":170},{"brand":"시티브리즈","channel":"무신사","name":"26SS 신상(3/16 11시~3/25 11시)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-25","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":171},{"brand":"아티드","channel":"무신사","name":"26SS 신상 (3/16일 ~ 3/25일)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-25","coupon":"10% 쿠폰","couponBurden":"","manager":"이루리 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":172},{"brand":"시티브리즈","channel":"자사몰","name":"START 2026 (1/1~1/15)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-15","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":173},{"brand":"아티드","channel":"자사몰","name":"신년 프로모션","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-15","coupon":"스타트 쿠폰팩 (10%, 15%, 20%) / 신규 카플친 추가 쿠폰 (3,000원 중복 사용 가능)","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 1+1 상품, 신규 회원 상품","path":"","id":174},{"brand":"아티드","channel":"자사몰","name":"클리어런스 (1/1 - 2/2)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-02-01","coupon":"최대 70% 할인 (쿠폰 사용 불가) / CRM","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":175},{"brand":"시티브리즈","channel":"자사몰","name":"주말특가 (1/8~1/12)","eventType":"기획전","startDate":"2026-01-08","endDate":"2026-01-12","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":176},{"brand":"아티드","channel":"자사몰","name":"아우터 특가 추가","eventType":"기획전","startDate":"2026-01-09","endDate":"2026-01-09","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":177},{"brand":"시티브리즈","channel":"자사몰","name":"시즌오프 (1/12~2/2)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-02-02","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":178},{"brand":"시티브리즈","channel":"자사몰","name":"바글이 기획전 (1/14~1/18)","eventType":"기획전","startDate":"2026-01-14","endDate":"2026-01-18","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":179},{"brand":"아티드","channel":"자사몰","name":"LAST OFFER (1/14 - 2/2)","eventType":"기획전","startDate":"2026-01-14","endDate":"2026-02-01","coupon":"FW/CW 30% 쿠폰 / .","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] CRM","path":"","id":180},{"brand":"아티드","channel":"자사몰","name":"주말특가","eventType":"기획전","startDate":"2026-01-16","endDate":"2026-01-18","coupon":"25 FW/CW / CRM","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":181},{"brand":"시티브리즈","channel":"자사몰","name":"클리어런스 (1/19~2/2)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-02-02","coupon":"발렌타인 기획전 (2/2~2/15)","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 예진 릴스 (2/2~2/15)","path":"","id":182},{"brand":"시티브리즈","channel":"자사몰","name":"녕이 기획전 (1/21~1/27)","eventType":"기획전","startDate":"2026-01-21","endDate":"2026-01-27","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":183},{"brand":"아티드","channel":"자사몰","name":"쏘머 PICK 시크릿 (1/22 - 1/29)","eventType":"기획전","startDate":"2026-01-22","endDate":"2026-01-28","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":184},{"brand":"시티브리즈","channel":"자사몰","name":"노유 릴스 (1/26~2/8)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":185},{"brand":"아티드","channel":"자사몰","name":"SALE 상시 운영","eventType":"기획전","startDate":"2026-02-01","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":186},{"brand":"아티드","channel":"자사몰","name":"위클리 특가 (2/2 - 2/8)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-04","coupon":"역시즌 > 2/5 종료","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":187},{"brand":"아티드","channel":"자사몰","name":"72H 특가 (2/5 - 2/8)","eventType":"기획전","startDate":"2026-02-05","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":188},{"brand":"시티브리즈","channel":"자사몰","name":"FIRST MOON EDIT (2/9~2/22)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-22","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":189},{"brand":"아티드","channel":"자사몰","name":"설레는 복 특가 (2/9 - 2/18)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-12","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":190},{"brand":"아티드","channel":"자사몰","name":"릴레이 BOK 세일 1차 (2/9 - 2/13)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-12","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":191},{"brand":"아티드","channel":"자사몰","name":"복 20% 쿠폰 발급","eventType":"기획전","startDate":"2026-02-13","endDate":"2026-02-13","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":192},{"brand":"아티드","channel":"자사몰","name":"릴레이 BOK 세일 2차 (2/13 - 2/18)","eventType":"기획전","startDate":"2026-02-13","endDate":"2026-02-18","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":193},{"brand":"아티드","channel":"자사몰","name":"BOK AFTER (2/19 - 2/22)","eventType":"기획전","startDate":"2026-02-19","endDate":"2026-02-19","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":194},{"brand":"아티드","channel":"자사몰","name":"애프터 특가 (2/20 - 2/22)","eventType":"기획전","startDate":"2026-02-20","endDate":"2026-02-22","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[비고] CRM","path":"","id":195},{"brand":"시티브리즈","channel":"자사몰","name":"스프링 비긴즈 (2/23~3/3)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-03","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":196},{"brand":"아티드","channel":"자사몰","name":"세일 포커스 (2/23 - 3/2)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-02","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":197},{"brand":"시티브리즈","channel":"자사몰","name":"MARCH OOTD (3/2~3/16)","eventType":"기획전","startDate":"2026-03-02","endDate":"2026-03-16","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":198},{"brand":"아티드","channel":"자사몰","name":"스프링 페스타 (3/3 - 3/15)","eventType":"기획전","startDate":"2026-03-03","endDate":"2026-03-15","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":199},{"brand":"아티드","channel":"지그재그","name":"이목집중 (1/1 - 1/4)","eventType":"기획전","startDate":"2026-01-01","endDate":"2026-01-04","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":200},{"brand":"시티브리즈","channel":"지그재그","name":"1/2~1/4 주말특가","eventType":"기획전","startDate":"2026-01-02","endDate":"2026-01-04","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":201},{"brand":"시티브리즈","channel":"지그재그","name":"컬러별 윈터 상의 큐레이션(1/5~1/11)","eventType":"기획전","startDate":"2026-01-05","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":202},{"brand":"아티드","channel":"지그재그","name":"화요쇼룸(1/6-1/7)","eventType":"기획전","startDate":"2026-01-06","endDate":"2026-01-07","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":203},{"brand":"아티드","channel":"지그재그","name":"애프터 화요쇼룸(1/8-1/11)","eventType":"기획전","startDate":"2026-01-08","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":204},{"brand":"시티브리즈","channel":"지그재그","name":"주말특가(1/9~1/11)","eventType":"기획전","startDate":"2026-01-09","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":205},{"brand":"아티드","channel":"지그재그","name":"주말특가(1/9-1/11)","eventType":"기획전","startDate":"2026-01-09","endDate":"2026-01-11","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":206},{"brand":"시티브리즈","channel":"지그재그","name":"시티브리즈 단독 기획전 (1/12~1/18)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-18","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":207},{"brand":"아티드","channel":"지그재그","name":"아티드 입점 프로모션 (단독) (1/12-1/18)","eventType":"기획전","startDate":"2026-01-12","endDate":"2026-01-18","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":208},{"brand":"아티드","channel":"지그재그","name":"타임세일","eventType":"기획전","startDate":"2026-01-15","endDate":"2026-01-15","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":209},{"brand":"아티드","channel":"지그재그","name":"주말특가(1/16-1/18)","eventType":"기획전","startDate":"2026-01-16","endDate":"2026-01-18","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":210},{"brand":"시티브리즈","channel":"지그재그","name":"어패럴 클리어런스(1/19~1/25)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":211},{"brand":"아티드","channel":"지그재그","name":"어패럴 클리어런스(1/19-1/25)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":212},{"brand":"아티드","channel":"지그재그","name":"직진 브랜드 위크(1/19-1/25)","eventType":"기획전","startDate":"2026-01-19","endDate":"2026-01-25","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":213},{"brand":"아티드","channel":"지그재그","name":"타임딜","eventType":"기획전","startDate":"2026-01-22","endDate":"2026-01-22","coupon":"니트/가디건","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 프리미엄 캐시미어 오픈 카라 니트","path":"","id":214},{"brand":"시티브리즈","channel":"지그재그","name":"브랜드 위크 (1/26~2/9)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-09","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":215},{"brand":"아티드","channel":"지그재그","name":"브랜드 위크","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-04","coupon":"15%, 20% (4:6부담), 25% 쿠폰(평일 6H, 주말 12H 지그재그 부담)","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":216},{"brand":"아티드","channel":"지그재그","name":"스토어 하이라이트","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-01-28","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":217},{"brand":"아티드","channel":"지그재그","name":"주말특가 (1/30 - 2/1)","eventType":"기획전","startDate":"2026-01-30","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":218},{"brand":"시티브리즈","channel":"지그재그","name":"직잭온리 연합전 (2/2~2/8)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":219},{"brand":"아티드","channel":"지그재그","name":"직잭 온리 (2/2 - 2/8)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":220},{"brand":"아티드","channel":"지그재그","name":"12H 타임특가 (2/5)","eventType":"기획전","startDate":"2026-02-05","endDate":"2026-02-05","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":221},{"brand":"아티드","channel":"지그재그","name":"스토어 하이라이트","eventType":"기획전","startDate":"2026-02-07","endDate":"2026-02-09","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":222},{"brand":"시티브리즈","channel":"지그재그","name":"패밀리세일 (시크릿) (2/9 - 2/15)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-15","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":223},{"brand":"시티브리즈","channel":"지그재그","name":"직진 브랜드위크 (2/9~2/15)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-15","coupon":"논페이드 데님 팬츠, 캐시미어 솔리스 브이넥 니트 / 타임특가 (2/13 12:00~23:59)","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 뮤트 로고 후드 집업, 시티 스몰 로고 라운드넥 가디건 / [비고] 리브드 스몰 로고 가디건 / [주력상품] 에센셜 빅로고 스웨트셔츠, 링클 프리 슬림핏 셔츠, 브이넥 셔링 블라우스, 코튼 블루종 점퍼, 링클 프리 베이직 슬랙스","path":"","id":224},{"brand":"시티브리즈","channel":"지그재그","name":"스프링 컬렉션 단독 프로모션 (2/9~2/18)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-18","coupon":"전상품 노출","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":225},{"brand":"아티드","channel":"지그재그","name":"패밀리세일 (시크릿) (2/9 - 2/15)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-14","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":226},{"brand":"아티드","channel":"지그재그","name":"직진 브랜드위크 (2/9 - 2/15)","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-14","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":227},{"brand":"시티브리즈","channel":"지그재그","name":"설날 프로모션 (2/15~2/23)","eventType":"기획전","startDate":"2026-02-15","endDate":"2026-02-23","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":228},{"brand":"아티드","channel":"지그재그","name":"설 프로모션(2/15 - 2-23)","eventType":"기획전","startDate":"2026-02-15","endDate":"2026-02-23","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":229},{"brand":"시티브리즈","channel":"지그재그","name":"화요쇼룸 (2/17~2/18)","eventType":"기획전","startDate":"2026-02-17","endDate":"2026-02-18","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":230},{"brand":"시티브리즈","channel":"지그재그","name":"화요쇼룸 애프터 (2/19~2/22)","eventType":"기획전","startDate":"2026-02-19","endDate":"2026-02-22","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":231},{"brand":"아티드","channel":"지그재그","name":"12H 타임특가 (2/22)","eventType":"기획전","startDate":"2026-02-22","endDate":"2026-02-22","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":232},{"brand":"시티브리즈","channel":"지그재그","name":"브랜드패션 5주년 프로모션 (2/23~3/9)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-09","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":233},{"brand":"아티드","channel":"지그재그","name":"브랜드패션 5주년 (2/23 - 3/9)","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-09","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":234},{"brand":"시티브리즈","channel":"지그재그","name":"화요쇼룸 (2/24~2/25)","eventType":"기획전","startDate":"2026-02-24","endDate":"2026-02-25","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":235},{"brand":"시티브리즈","channel":"지그재그","name":"화요쇼룸 애프터(2/26~3/1)","eventType":"기획전","startDate":"2026-02-26","endDate":"2026-03-01","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":236},{"brand":"아티드","channel":"지그재그","name":"Z클럽 (3/2 - 3/4)","eventType":"기획전","startDate":"2026-03-02","endDate":"2026-03-04","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":237},{"brand":"시티브리즈","channel":"지그재그","name":"주말특가 (3/6~3/8)","eventType":"기획전","startDate":"2026-03-06","endDate":"2026-03-08","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":238},{"brand":"아티드","channel":"지그재그","name":"지그재그 26SS 선오픈 (3/9-3/24)","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-10","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":239},{"brand":"아티드","channel":"지그재그","name":"알로하","eventType":"기획전","startDate":"2026-03-11","endDate":"2026-03-11","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":240},{"brand":"시티브리즈","channel":"지그재그","name":"스프링 익스클루시브 (3/16~3/29)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-29","coupon":"연합라이브 (3/16)","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"[주력상품] 시티브리즈 26SS 쇼케이스 (3/16~3/29)","path":"","id":241},{"brand":"시티브리즈","channel":"지그재그","name":"직잭온리 (3/16~3/22)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-22","coupon":"","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":242},{"brand":"아티드","channel":"지그재그","name":"직잭온리 브랜디드 (3/16 - 3/29)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-29","coupon":"오버랩 사이드 타이 블라우스","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":243},{"brand":"아티드","channel":"지그재그","name":"26SS 단독 기획전 (3/16 - 3/22)","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-21","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":244},{"brand":"아티드","channel":"지그재그","name":"연합 라이브","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-16","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":245},{"brand":"아티드","channel":"지그재그","name":"화요쇼룸 (3/17 - 3/18)","eventType":"기획전","startDate":"2026-03-17","endDate":"2026-03-18","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":246},{"brand":"아티드","channel":"지그재그","name":"단독 라이브 20시","eventType":"기획전","startDate":"2026-03-22","endDate":"2026-03-22","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":247},{"brand":"아티드","channel":"지그재그","name":"봄 직잭팟 (3/23 - 4/6)","eventType":"기획전","startDate":"2026-03-23","endDate":"2026-04-06","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":248},{"brand":"시티브리즈","channel":"지그재그","name":"디자이너 브랜드 위크 (3/30~4/13)","eventType":"기획전","startDate":"2026-03-30","endDate":"2026-04-13","coupon":"단독 라이브 (3/31)","couponBurden":"","manager":"오지연 책임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":249},{"brand":"시티브리즈","channel":"전채널","name":"26SS 1차 발매 브랜드뉴스(1/26~2/1)","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-01","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":250},{"brand":"시티브리즈","channel":"전채널","name":"26SS 2차 발매","eventType":"기획전","startDate":"2026-02-09","endDate":"2026-02-09","coupon":"","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":251},{"brand":"시티브리즈","channel":"전채널","name":"26SS 2차 단독 선발매 기획전(2/2~2/8)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-08","coupon":"선발매 상품들 라인시트에 표기됨","couponBurden":"","manager":"박선주 선임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":252},{"brand":"아티드","channel":"전채널","name":"26SS 1차 발매","eventType":"기획전","startDate":"2026-01-26","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":253},{"brand":"아티드","channel":"전채널","name":"26SS 2차 발매","eventType":"기획전","startDate":"2026-02-23","endDate":"2026-03-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"[비고] 온/오프 CRM","path":"","id":254},{"brand":"아티드","channel":"전채널","name":"26SS 3차 발매","eventType":"기획전","startDate":"2026-03-09","endDate":"2026-03-15","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":255},{"brand":"아티드","channel":"전채널","name":"26SS 4차 발매","eventType":"기획전","startDate":"2026-03-16","endDate":"2026-03-29","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":256},{"brand":"아티드","channel":"전채널","name":"26SS 1차 발매 기획전 (단독 컬러 발매) (2/2-2/8)","eventType":"기획전","startDate":"2026-02-02","endDate":"2026-02-08","coupon":"","couponBurden":"","manager":"김연정 주임","importance":"0","targetSales":"","actualSales":"","note":"","path":"","id":257}];
 // ── 상수 ─────────────────────────────────────────────
-// ── 실적 데이터: Firebase promo/sales 실시간 연동 ─────────────
-// CHANNEL_ACTUAL_DATA / MONTHLY_ACTUAL_PRESET 은 Firebase에서 로드 후 덮어씀
-let CHANNEL_ACTUAL_DATA = {"시티브리즈_자사몰":{"1":{"tgt":400000000,"act":316050910},"2":{"tgt":295000000,"act":328672485},"3":{"tgt":455000000,"act":0},"4":{"tgt":433000000,"act":0},"5":{"tgt":581000000,"act":0},"6":{"tgt":591000000,"act":0},"7":{"tgt":455000000,"act":0},"8":{"tgt":308000000,"act":0},"9":{"tgt":450000000,"act":0},"10":{"tgt":476000000,"act":0},"11":{"tgt":468000000,"act":0},"12":{"tgt":593000000,"act":0}},"시티브리즈_29CM":{"1":{"tgt":357000000,"act":296848280},"2":{"tgt":260000000,"act":163064250},"3":{"tgt":307000000,"act":0},"4":{"tgt":367000000,"act":0},"5":{"tgt":237000000,"act":0},"6":{"tgt":365000000,"act":0},"7":{"tgt":210000000,"act":0},"8":{"tgt":122000000,"act":0},"9":{"tgt":238000000,"act":0},"10":{"tgt":292000000,"act":0},"11":{"tgt":456000000,"act":0},"12":{"tgt":287000000,"act":0}},"시티브리즈_무신사":{"1":{"tgt":271000000,"act":275018120},"2":{"tgt":155000000,"act":202970130},"3":{"tgt":233000000,"act":0},"4":{"tgt":282000000,"act":0},"5":{"tgt":161000000,"act":0},"6":{"tgt":213000000,"act":0},"7":{"tgt":184000000,"act":0},"8":{"tgt":66000000,"act":0},"9":{"tgt":148000000,"act":0},"10":{"tgt":188000000,"act":0},"11":{"tgt":392000000,"act":0},"12":{"tgt":200000000,"act":0}},"시티브리즈_W컨셉":{"1":{"tgt":392000000,"act":344717015},"2":{"tgt":469000000,"act":293213745},"3":{"tgt":636000000,"act":0},"4":{"tgt":745000000,"act":0},"5":{"tgt":606000000,"act":0},"6":{"tgt":1015000000,"act":0},"7":{"tgt":333000000,"act":0},"8":{"tgt":238000000,"act":0},"9":{"tgt":731000000,"act":0},"10":{"tgt":740000000,"act":0},"11":{"tgt":1024000000,"act":0},"12":{"tgt":752000000,"act":0}},"시티브리즈_지그재그":{"1":{"tgt":60000000,"act":50061770},"2":{"tgt":94000000,"act":144103420},"3":{"tgt":258000000,"act":0},"4":{"tgt":234000000,"act":0},"5":{"tgt":214000000,"act":0},"6":{"tgt":401000000,"act":0},"7":{"tgt":203000000,"act":0},"8":{"tgt":168000000,"act":0},"9":{"tgt":383000000,"act":0},"10":{"tgt":420000000,"act":0},"11":{"tgt":541000000,"act":0},"12":{"tgt":326000000,"act":0}},"시티브리즈_브론테":{"1":{"tgt":315000000,"act":178270800},"2":{"tgt":0,"act":16355800},"3":{"tgt":0,"act":0},"4":{"tgt":0,"act":0},"5":{"tgt":0,"act":0},"6":{"tgt":0,"act":0},"7":{"tgt":0,"act":0},"8":{"tgt":0,"act":0},"9":{"tgt":224000000,"act":0},"10":{"tgt":0,"act":0},"11":{"tgt":0,"act":0},"12":{"tgt":97000000,"act":0}},"시티브리즈_롯데온":{"1":{"tgt":43000000,"act":52543608},"2":{"tgt":87000000,"act":43029809},"3":{"tgt":51000000,"act":0},"4":{"tgt":40000000,"act":0},"5":{"tgt":46000000,"act":0},"6":{"tgt":104000000,"act":0},"7":{"tgt":54000000,"act":0},"8":{"tgt":56000000,"act":0},"9":{"tgt":103000000,"act":0},"10":{"tgt":105000000,"act":0},"11":{"tgt":80000000,"act":0},"12":{"tgt":48000000,"act":0}},"시티브리즈_하고":{"1":{"tgt":17000000,"act":24466335},"2":{"tgt":14000000,"act":10235750},"3":{"tgt":20000000,"act":0},"4":{"tgt":16000000,"act":0},"5":{"tgt":18000000,"act":0},"6":{"tgt":21000000,"act":0},"7":{"tgt":25000000,"act":0},"8":{"tgt":19000000,"act":0},"9":{"tgt":35000000,"act":0},"10":{"tgt":36000000,"act":0},"11":{"tgt":40000000,"act":0},"12":{"tgt":29000000,"act":0}},"시티브리즈_네이버":{"1":{"tgt":8000000,"act":17444910},"2":{"tgt":7000000,"act":14244390},"3":{"tgt":10000000,"act":0},"4":{"tgt":8000000,"act":0},"5":{"tgt":9000000,"act":0},"6":{"tgt":10000000,"act":0},"7":{"tgt":8000000,"act":0},"8":{"tgt":6000000,"act":0},"9":{"tgt":8000000,"act":0},"10":{"tgt":9000000,"act":0},"11":{"tgt":10000000,"act":0},"12":{"tgt":9000000,"act":0}},"시티브리즈_EQL":{"1":{"tgt":5600000,"act":2312270},"2":{"tgt":4900000,"act":7086350},"3":{"tgt":7000000,"act":0},"4":{"tgt":5600000,"act":0},"5":{"tgt":6300000,"act":0},"6":{"tgt":7000000,"act":0},"7":{"tgt":5600000,"act":0},"8":{"tgt":4200000,"act":0},"9":{"tgt":5600000,"act":0},"10":{"tgt":6300000,"act":0},"11":{"tgt":7000000,"act":0},"12":{"tgt":6300000,"act":0}},"아티드_자사몰":{"1":{"tgt":131000000,"act":211991233},"2":{"tgt":167000000,"act":193649300},"3":{"tgt":154000000,"act":0},"4":{"tgt":282000000,"act":0},"5":{"tgt":199000000,"act":0},"6":{"tgt":318000000,"act":0},"7":{"tgt":131000000,"act":0},"8":{"tgt":156000000,"act":0},"9":{"tgt":225000000,"act":0},"10":{"tgt":334000000,"act":0},"11":{"tgt":337000000,"act":0},"12":{"tgt":375000000,"act":0}},"아티드_29CM":{"1":{"tgt":277000000,"act":226844410},"2":{"tgt":214000000,"act":114739800},"3":{"tgt":156000000,"act":0},"4":{"tgt":105000000,"act":0},"5":{"tgt":109000000,"act":0},"6":{"tgt":125000000,"act":0},"7":{"tgt":78000000,"act":0},"8":{"tgt":70000000,"act":0},"9":{"tgt":162000000,"act":0},"10":{"tgt":170000000,"act":0},"11":{"tgt":251000000,"act":0},"12":{"tgt":149000000,"act":0}},"아티드_무신사":{"1":{"tgt":58000000,"act":31623020},"2":{"tgt":55000000,"act":22492590},"3":{"tgt":55000000,"act":0},"4":{"tgt":53000000,"act":0},"5":{"tgt":52000000,"act":0},"6":{"tgt":74000000,"act":0},"7":{"tgt":33000000,"act":0},"8":{"tgt":33000000,"act":0},"9":{"tgt":59000000,"act":0},"10":{"tgt":54000000,"act":0},"11":{"tgt":102000000,"act":0},"12":{"tgt":70000000,"act":0}},"아티드_W컨셉":{"1":{"tgt":245000000,"act":271988885},"2":{"tgt":300000000,"act":268447245},"3":{"tgt":342000000,"act":0},"4":{"tgt":321000000,"act":0},"5":{"tgt":371000000,"act":0},"6":{"tgt":354000000,"act":0},"7":{"tgt":248000000,"act":0},"8":{"tgt":208000000,"act":0},"9":{"tgt":529000000,"act":0},"10":{"tgt":568000000,"act":0},"11":{"tgt":750000000,"act":0},"12":{"tgt":417000000,"act":0}},"아티드_지그재그":{"1":{"tgt":52000000,"act":44283710},"2":{"tgt":62000000,"act":80588060},"3":{"tgt":166000000,"act":0},"4":{"tgt":139000000,"act":0},"5":{"tgt":140000000,"act":0},"6":{"tgt":172000000,"act":0},"7":{"tgt":134000000,"act":0},"8":{"tgt":115000000,"act":0},"9":{"tgt":165000000,"act":0},"10":{"tgt":208000000,"act":0},"11":{"tgt":340000000,"act":0},"12":{"tgt":166000000,"act":0}},"아티드_브론테":{"1":{"tgt":0,"act":0},"2":{"tgt":219000000,"act":163420000},"3":{"tgt":0,"act":0},"4":{"tgt":0,"act":0},"5":{"tgt":0,"act":0},"6":{"tgt":0,"act":0},"7":{"tgt":91000000,"act":0},"8":{"tgt":0,"act":0},"9":{"tgt":0,"act":0},"10":{"tgt":206000000,"act":0},"11":{"tgt":0,"act":0},"12":{"tgt":0,"act":0}},"아티드_롯데온":{"1":{"tgt":22000000,"act":42953455},"2":{"tgt":35000000,"act":19898997},"3":{"tgt":62000000,"act":0},"4":{"tgt":55000000,"act":0},"5":{"tgt":55000000,"act":0},"6":{"tgt":56000000,"act":0},"7":{"tgt":57000000,"act":0},"8":{"tgt":52000000,"act":0},"9":{"tgt":53000000,"act":0},"10":{"tgt":57000000,"act":0},"11":{"tgt":66000000,"act":0},"12":{"tgt":55000000,"act":0}},"아티드_하고":{"1":{"tgt":15400000,"act":32097675},"2":{"tgt":11900000,"act":21889620},"3":{"tgt":23100000,"act":0},"4":{"tgt":24500000,"act":0},"5":{"tgt":37100000,"act":0},"6":{"tgt":22400000,"act":0},"7":{"tgt":31500000,"act":0},"8":{"tgt":10500000,"act":0},"9":{"tgt":18200000,"act":0},"10":{"tgt":23100000,"act":0},"11":{"tgt":17500000,"act":0},"12":{"tgt":6300000,"act":0}},"아티드_네이버":{"1":{"tgt":1320000,"act":11145485},"2":{"tgt":1020000,"act":8988615},"3":{"tgt":1980000,"act":0},"4":{"tgt":2100000,"act":0},"5":{"tgt":3180000,"act":0},"6":{"tgt":1920000,"act":0},"7":{"tgt":2700000,"act":0},"8":{"tgt":900000,"act":0},"9":{"tgt":1560000,"act":0},"10":{"tgt":1980000,"act":0},"11":{"tgt":1500000,"act":0},"12":{"tgt":540000,"act":0}},"아티드_EQL":{"1":{"tgt":5280000,"act":1417020},"2":{"tgt":4080000,"act":4773170},"3":{"tgt":7920000,"act":0},"4":{"tgt":8400000,"act":0},"5":{"tgt":12720000,"act":0},"6":{"tgt":7680000,"act":0},"7":{"tgt":10800000,"act":0},"8":{"tgt":3600000,"act":0},"9":{"tgt":6240000,"act":0},"10":{"tgt":7920000,"act":0},"11":{"tgt":6000000,"act":0},"12":{"tgt":2160000,"act":0}}};
-let MONTHLY_ACTUAL_PRESET = {"시티브리즈":[1564551393,1348073929],"아티드":[968184753,899805037],"전체":[2532736146,2247878966]};
-
-// Firebase에서 실적 데이터 로드 (promo/sales)
-function applySalesData(data) {
-  // SDK 방식: data는 이미 파싱된 JS 객체
-  try {
-    // ── monthly_brand → MONTHLY_ACTUAL_PRESET ─────────────────
-    const mb = data.monthly_brand || {};
-    const newMAP = {};
-    for (const [brand, arr] of Object.entries(mb)) {
-      if (!Array.isArray(arr)) continue;
-      const byMonth = {};
-      arr.forEach(item => {
-        const m = item.month, t = item.target, a = item.actual;
-        if (m >= 1) byMonth[m] = {target: t, actual: a};
-      });
-      const actArr = Array.from({length: 12}, (_, i) => byMonth[i+1]?.actual || 0).filter(v => v > 0);
-      if (actArr.length > 0) newMAP[brand] = actArr;
-    }
-    if (Object.keys(newMAP).length > 0) Object.assign(MONTHLY_ACTUAL_PRESET, newMAP);
-
-    // ── monthly_channel → CHANNEL_ACTUAL_DATA ─────────────────
-    const mc = data.monthly_channel || {};
-    for (const [brand, chMap] of Object.entries(mc)) {
-      for (const [ch, arr] of Object.entries(chMap)) {
-        if (!Array.isArray(arr)) continue;
-        const key = `${brand}_${ch}`;
-        if (!CHANNEL_ACTUAL_DATA[key]) CHANNEL_ACTUAL_DATA[key] = {};
-        arr.forEach(item => {
-          const m = item.month;
-          if (m >= 1) CHANNEL_ACTUAL_DATA[key][String(m)] = {tgt: item.target, act: item.actual};
-        });
-      }
-    }
-    console.log("✅ 실적 데이터 Firebase 로드 완료");
-    // React 리렌더 트리거 (전역 let 변수 변경 후 강제 갱신)
-    if (window.__onSalesApplied) window.__onSalesApplied();
-  } catch(e) {
-    console.warn("실적 데이터 적용 실패:", e);
-  }
-}
-
-function loadSalesFromFirebase() {
-  // Firebase SDK 방식: window.__salesData가 이미 로드됐으면 바로 적용
-  if (window.__salesData) {
-    applySalesData(window.__salesData);
-  } else {
-    // 아직 로드 중이면 콜백 등록
-    window.__onSalesLoaded = (data) => applySalesData(data);
-  }
-}
+const CHANNEL_ACTUAL_DATA = {"시티브리즈_자사몰":{"1":{"tgt":400000000,"act":316050910},"2":{"tgt":295000000,"act":328672485},"3":{"tgt":455000000,"act":0},"4":{"tgt":433000000,"act":0},"5":{"tgt":581000000,"act":0},"6":{"tgt":591000000,"act":0},"7":{"tgt":455000000,"act":0},"8":{"tgt":308000000,"act":0},"9":{"tgt":450000000,"act":0},"10":{"tgt":476000000,"act":0},"11":{"tgt":468000000,"act":0},"12":{"tgt":593000000,"act":0}},"시티브리즈_29CM":{"1":{"tgt":357000000,"act":296848280},"2":{"tgt":260000000,"act":163064250},"3":{"tgt":307000000,"act":0},"4":{"tgt":367000000,"act":0},"5":{"tgt":237000000,"act":0},"6":{"tgt":365000000,"act":0},"7":{"tgt":210000000,"act":0},"8":{"tgt":122000000,"act":0},"9":{"tgt":238000000,"act":0},"10":{"tgt":292000000,"act":0},"11":{"tgt":456000000,"act":0},"12":{"tgt":287000000,"act":0}},"시티브리즈_무신사":{"1":{"tgt":271000000,"act":275018120},"2":{"tgt":155000000,"act":202970130},"3":{"tgt":233000000,"act":0},"4":{"tgt":282000000,"act":0},"5":{"tgt":161000000,"act":0},"6":{"tgt":213000000,"act":0},"7":{"tgt":184000000,"act":0},"8":{"tgt":66000000,"act":0},"9":{"tgt":148000000,"act":0},"10":{"tgt":188000000,"act":0},"11":{"tgt":392000000,"act":0},"12":{"tgt":200000000,"act":0}},"시티브리즈_W컨셉":{"1":{"tgt":392000000,"act":344717015},"2":{"tgt":469000000,"act":293213745},"3":{"tgt":636000000,"act":0},"4":{"tgt":745000000,"act":0},"5":{"tgt":606000000,"act":0},"6":{"tgt":1015000000,"act":0},"7":{"tgt":333000000,"act":0},"8":{"tgt":238000000,"act":0},"9":{"tgt":731000000,"act":0},"10":{"tgt":740000000,"act":0},"11":{"tgt":1024000000,"act":0},"12":{"tgt":752000000,"act":0}},"시티브리즈_지그재그":{"1":{"tgt":60000000,"act":50061770},"2":{"tgt":94000000,"act":144103420},"3":{"tgt":258000000,"act":0},"4":{"tgt":234000000,"act":0},"5":{"tgt":214000000,"act":0},"6":{"tgt":401000000,"act":0},"7":{"tgt":203000000,"act":0},"8":{"tgt":168000000,"act":0},"9":{"tgt":383000000,"act":0},"10":{"tgt":420000000,"act":0},"11":{"tgt":541000000,"act":0},"12":{"tgt":326000000,"act":0}},"시티브리즈_브론테":{"1":{"tgt":315000000,"act":178270800},"2":{"tgt":0,"act":16355800},"3":{"tgt":0,"act":0},"4":{"tgt":0,"act":0},"5":{"tgt":0,"act":0},"6":{"tgt":0,"act":0},"7":{"tgt":0,"act":0},"8":{"tgt":0,"act":0},"9":{"tgt":224000000,"act":0},"10":{"tgt":0,"act":0},"11":{"tgt":0,"act":0},"12":{"tgt":97000000,"act":0}},"시티브리즈_롯데온":{"1":{"tgt":43000000,"act":52543608},"2":{"tgt":87000000,"act":43029809},"3":{"tgt":51000000,"act":0},"4":{"tgt":40000000,"act":0},"5":{"tgt":46000000,"act":0},"6":{"tgt":104000000,"act":0},"7":{"tgt":54000000,"act":0},"8":{"tgt":56000000,"act":0},"9":{"tgt":103000000,"act":0},"10":{"tgt":105000000,"act":0},"11":{"tgt":80000000,"act":0},"12":{"tgt":48000000,"act":0}},"시티브리즈_하고":{"1":{"tgt":17000000,"act":24466335},"2":{"tgt":14000000,"act":10235750},"3":{"tgt":20000000,"act":0},"4":{"tgt":16000000,"act":0},"5":{"tgt":18000000,"act":0},"6":{"tgt":21000000,"act":0},"7":{"tgt":25000000,"act":0},"8":{"tgt":19000000,"act":0},"9":{"tgt":35000000,"act":0},"10":{"tgt":36000000,"act":0},"11":{"tgt":40000000,"act":0},"12":{"tgt":29000000,"act":0}},"시티브리즈_네이버":{"1":{"tgt":8000000,"act":17444910},"2":{"tgt":7000000,"act":14244390},"3":{"tgt":10000000,"act":0},"4":{"tgt":8000000,"act":0},"5":{"tgt":9000000,"act":0},"6":{"tgt":10000000,"act":0},"7":{"tgt":8000000,"act":0},"8":{"tgt":6000000,"act":0},"9":{"tgt":8000000,"act":0},"10":{"tgt":9000000,"act":0},"11":{"tgt":10000000,"act":0},"12":{"tgt":9000000,"act":0}},"시티브리즈_EQL":{"1":{"tgt":5600000,"act":2312270},"2":{"tgt":4900000,"act":7086350},"3":{"tgt":7000000,"act":0},"4":{"tgt":5600000,"act":0},"5":{"tgt":6300000,"act":0},"6":{"tgt":7000000,"act":0},"7":{"tgt":5600000,"act":0},"8":{"tgt":4200000,"act":0},"9":{"tgt":5600000,"act":0},"10":{"tgt":6300000,"act":0},"11":{"tgt":7000000,"act":0},"12":{"tgt":6300000,"act":0}},"아티드_자사몰":{"1":{"tgt":131000000,"act":211991233},"2":{"tgt":167000000,"act":193649300},"3":{"tgt":154000000,"act":0},"4":{"tgt":282000000,"act":0},"5":{"tgt":199000000,"act":0},"6":{"tgt":318000000,"act":0},"7":{"tgt":131000000,"act":0},"8":{"tgt":156000000,"act":0},"9":{"tgt":225000000,"act":0},"10":{"tgt":334000000,"act":0},"11":{"tgt":337000000,"act":0},"12":{"tgt":375000000,"act":0}},"아티드_29CM":{"1":{"tgt":277000000,"act":226844410},"2":{"tgt":214000000,"act":114739800},"3":{"tgt":156000000,"act":0},"4":{"tgt":105000000,"act":0},"5":{"tgt":109000000,"act":0},"6":{"tgt":125000000,"act":0},"7":{"tgt":78000000,"act":0},"8":{"tgt":70000000,"act":0},"9":{"tgt":162000000,"act":0},"10":{"tgt":170000000,"act":0},"11":{"tgt":251000000,"act":0},"12":{"tgt":149000000,"act":0}},"아티드_무신사":{"1":{"tgt":58000000,"act":31623020},"2":{"tgt":55000000,"act":22492590},"3":{"tgt":55000000,"act":0},"4":{"tgt":53000000,"act":0},"5":{"tgt":52000000,"act":0},"6":{"tgt":74000000,"act":0},"7":{"tgt":33000000,"act":0},"8":{"tgt":33000000,"act":0},"9":{"tgt":59000000,"act":0},"10":{"tgt":54000000,"act":0},"11":{"tgt":102000000,"act":0},"12":{"tgt":70000000,"act":0}},"아티드_W컨셉":{"1":{"tgt":245000000,"act":271988885},"2":{"tgt":300000000,"act":268447245},"3":{"tgt":342000000,"act":0},"4":{"tgt":321000000,"act":0},"5":{"tgt":371000000,"act":0},"6":{"tgt":354000000,"act":0},"7":{"tgt":248000000,"act":0},"8":{"tgt":208000000,"act":0},"9":{"tgt":529000000,"act":0},"10":{"tgt":568000000,"act":0},"11":{"tgt":750000000,"act":0},"12":{"tgt":417000000,"act":0}},"아티드_지그재그":{"1":{"tgt":52000000,"act":44283710},"2":{"tgt":62000000,"act":80588060},"3":{"tgt":166000000,"act":0},"4":{"tgt":139000000,"act":0},"5":{"tgt":140000000,"act":0},"6":{"tgt":172000000,"act":0},"7":{"tgt":134000000,"act":0},"8":{"tgt":115000000,"act":0},"9":{"tgt":165000000,"act":0},"10":{"tgt":208000000,"act":0},"11":{"tgt":340000000,"act":0},"12":{"tgt":166000000,"act":0}},"아티드_브론테":{"1":{"tgt":0,"act":0},"2":{"tgt":219000000,"act":163420000},"3":{"tgt":0,"act":0},"4":{"tgt":0,"act":0},"5":{"tgt":0,"act":0},"6":{"tgt":0,"act":0},"7":{"tgt":91000000,"act":0},"8":{"tgt":0,"act":0},"9":{"tgt":0,"act":0},"10":{"tgt":206000000,"act":0},"11":{"tgt":0,"act":0},"12":{"tgt":0,"act":0}},"아티드_롯데온":{"1":{"tgt":22000000,"act":42953455},"2":{"tgt":35000000,"act":19898997},"3":{"tgt":62000000,"act":0},"4":{"tgt":55000000,"act":0},"5":{"tgt":55000000,"act":0},"6":{"tgt":56000000,"act":0},"7":{"tgt":57000000,"act":0},"8":{"tgt":52000000,"act":0},"9":{"tgt":53000000,"act":0},"10":{"tgt":57000000,"act":0},"11":{"tgt":66000000,"act":0},"12":{"tgt":55000000,"act":0}},"아티드_하고":{"1":{"tgt":15400000,"act":32097675},"2":{"tgt":11900000,"act":21889620},"3":{"tgt":23100000,"act":0},"4":{"tgt":24500000,"act":0},"5":{"tgt":37100000,"act":0},"6":{"tgt":22400000,"act":0},"7":{"tgt":31500000,"act":0},"8":{"tgt":10500000,"act":0},"9":{"tgt":18200000,"act":0},"10":{"tgt":23100000,"act":0},"11":{"tgt":17500000,"act":0},"12":{"tgt":6300000,"act":0}},"아티드_네이버":{"1":{"tgt":1320000,"act":11145485},"2":{"tgt":1020000,"act":8988615},"3":{"tgt":1980000,"act":0},"4":{"tgt":2100000,"act":0},"5":{"tgt":3180000,"act":0},"6":{"tgt":1920000,"act":0},"7":{"tgt":2700000,"act":0},"8":{"tgt":900000,"act":0},"9":{"tgt":1560000,"act":0},"10":{"tgt":1980000,"act":0},"11":{"tgt":1500000,"act":0},"12":{"tgt":540000,"act":0}},"아티드_EQL":{"1":{"tgt":5280000,"act":1417020},"2":{"tgt":4080000,"act":4773170},"3":{"tgt":7920000,"act":0},"4":{"tgt":8400000,"act":0},"5":{"tgt":12720000,"act":0},"6":{"tgt":7680000,"act":0},"7":{"tgt":10800000,"act":0},"8":{"tgt":3600000,"act":0},"9":{"tgt":6240000,"act":0},"10":{"tgt":7920000,"act":0},"11":{"tgt":6000000,"act":0},"12":{"tgt":2160000,"act":0}}};
+const MONTHLY_ACTUAL_PRESET = {"시티브리즈":[1564551393,1348073929],"아티드":[968184753,899805037],"전체":[2532736146,2247878966]};
 const DEFAULT_BRANDS = ["시티브리즈","아티드"];
 const DEFAULT_CHANNELS = [
   {id:2,name:"자사몰"},{id:3,name:"29CM"},{id:5,name:"W컨셉"},
@@ -978,95 +885,16 @@ function ChannelDashboard({channel,events,brand,bc,jasaMemos,saveJasaMemo,channe
     const tgtKey=brand==="시티브리즈"?"tcb":brand==="아티드"?"tat":"tgt";
     const annTgt=Object.values(strats).reduce((s,m)=>s+parseAmt(m[tgtKey]||m.tgt),0);
     const stratAct=Object.values(strats).reduce((s,m)=>s+parseAmt(m.act),0);
-    // CHANNEL_ACTUAL_DATA에서 CT/AT 각각 합산
-    const chActCT=CHANNEL_ACTUAL_DATA["시티브리즈_"+channel]||{};
-    const chActAT=CHANNEL_ACTUAL_DATA["아티드_"+channel]||{};
-    const presetActCT=Object.values(chActCT).reduce((s,v)=>s+(v.act||0),0);
-    const presetActAT=Object.values(chActAT).reduce((s,v)=>s+(v.act||0),0);
-    const presetAct=brand==="전체"?presetActCT+presetActAT:brand==="시티브리즈"?presetActCT:presetActAT;
+    // CHANNEL_ACTUAL_DATA에서 brand+channel 기준 실적 합산
+    const chActKey=brand+"_"+channel;
+    const chActData=CHANNEL_ACTUAL_DATA[chActKey]||{};
+    const presetAct=Object.values(chActData).reduce((s,v)=>s+(v.act||0),0);
     const annAct=stratAct>0?stratAct:presetAct;
     const annRate=annTgt>0?Math.round(annAct/annTgt*100):null;
     const channels_list = ["자사몰","29CM","W컨셉","무신사","지그재그"];
     return (
       <>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:brand==="전체"?8:16}}>
-        <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>연간 목표</div><div style={{fontSize:22,fontWeight:900,color:"#27ae60"}}>{annTgt>0?(annTgt/100000000).toFixed(1)+"억":"-"}</div></div>
-        <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>전체 누적 실적</div><div style={{fontSize:22,fontWeight:900,color:"#e67e22"}}>{annAct>0?(annAct/100000000).toFixed(2)+"억":"-"}</div></div>
-        <div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>달성률</div><div style={{fontSize:22,fontWeight:900,color:"#4f6ef7"}}>{annRate!=null?annRate+"%":"-"}</div></div>
-      </div>
-      {brand==="전체"&&(presetActCT>0||presetActAT>0)&&(
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-          <div style={{background:"#eaf4ff",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-            <div style={{fontSize:10,color:"#5a7a9a",marginBottom:2,fontWeight:700}}>시티브리즈 누적</div>
-            <div style={{fontSize:17,fontWeight:900,color:"#2271b3"}}>{presetActCT>0?(presetActCT/100000000).toFixed(2)+"억":"-"}</div>
-          </div>
-          <div style={{background:"#fff4ea",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-            <div style={{fontSize:10,color:"#9a6a2a",marginBottom:2,fontWeight:700}}>아티드 누적</div>
-            <div style={{fontSize:17,fontWeight:900,color:"#b36622"}}>{presetActAT>0?(presetActAT/100000000).toFixed(2)+"억":"-"}</div>
-          </div>
-        </div>
-      )}<div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"16px 20px",marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:12,letterSpacing:1}}>월별 목표 vs 실적</div>
-        {(()=>{
-          const months=Array.from({length:12},(_,i)=>i+1);
-          const tgts=months.map(mn=>{
-            const s=strats[mn];
-            if(s) return parseAmt(s[tgtKey]||s.tgt);
-            // strats 없으면 CHANNEL_ACTUAL_DATA tgt
-            const cbT=(CHANNEL_ACTUAL_DATA["시티브리즈_"+channel]||{})[String(mn)]?.tgt||0;
-            const atT=(CHANNEL_ACTUAL_DATA["아티드_"+channel]||{})[String(mn)]?.tgt||0;
-            return brand==="전체"?cbT+atT:brand==="시티브리즈"?cbT:atT;
-          });
-          const acts=months.map(mn=>{
-            const s=strats[mn];
-            const sv=s&&s.act?parseAmt(s.act):0;
-            const cbA=(CHANNEL_ACTUAL_DATA["시티브리즈_"+channel]||{})[String(mn)]?.act||0;
-            const atA=(CHANNEL_ACTUAL_DATA["아티드_"+channel]||{})[String(mn)]?.act||0;
-            const pv=brand==="전체"?cbA+atA:brand==="시티브리즈"?cbA:atA;
-            return sv>0?sv:pv;
-          });
-          const maxVal=Math.max(...tgts,...acts,1);
-          const BAR_W=36, GAP=8, H=80, LABEL_H=16;
-          const totalW=months.length*(BAR_W+GAP)-GAP;
-          const todayM=new Date().getMonth()+1;
-          return (
-            <svg width="100%" viewBox={`0 0 ${totalW+20} ${H+LABEL_H+8}`} style={{overflow:"visible"}}>
-              {months.map((mn,i)=>{
-                const x=i*(BAR_W+GAP);
-                const tH=Math.round((tgts[i]/maxVal)*H)||0;
-                const aH=Math.round((acts[i]/maxVal)*H)||0;
-                const rate=tgts[i]>0?Math.round(acts[i]/tgts[i]*100):null;
-                const isCur=mn===todayM;
-                const isPast=mn<todayM;
-                const tgtCol=isCur?"#2B4B9E":"#c5cfe8";
-                const actCol=acts[i]>0?(rate>=100?"#27ae60":rate>=70?"#e67e22":"#e74c3c"):"#e0e4f0";
-                return (
-                  <g key={mn}>
-                    {/* 목표 바 (배경) */}
-                    <rect x={x} y={H-tH} width={BAR_W} height={tH||2} fill={tgtCol} rx={3} opacity={0.3}/>
-                    {/* 실적 바 */}
-                    {acts[i]>0&&<rect x={x+4} y={H-aH} width={BAR_W-8} height={aH||2} fill={actCol} rx={2}/>}
-                    {/* 현재월 테두리 */}
-                    {isCur&&<rect x={x-1} y={0} width={BAR_W+2} height={H+2} fill="none" stroke="#2B4B9E" strokeWidth={1.5} rx={4} opacity={0.5}/>}
-                    {/* 달성률 */}
-                    {rate!==null&&acts[i]>0&&<text x={x+BAR_W/2} y={H-aH-3} textAnchor="middle" fontSize={8} fontWeight={700} fill={actCol}>{rate}%</text>}
-                    {/* 월 라벨 */}
-                    <text x={x+BAR_W/2} y={H+LABEL_H} textAnchor="middle" fontSize={9} fontWeight={isCur?800:500} fill={isCur?"#2B4B9E":"#889"}>{mn}월</text>
-                    {/* 목표 금액 (hover tooltip 대신 현재월만) */}
-                    {isCur&&tgts[i]>0&&<text x={x+BAR_W/2} y={H+LABEL_H+9} textAnchor="middle" fontSize={7} fill="#aaa">{(tgts[i]/100000000).toFixed(1)}억</text>}
-                  </g>
-                );
-              })}
-              {/* 범례 */}
-              <rect x={totalW-60} y={-12} width={10} height={10} fill="#c5cfe8" rx={2} opacity={0.5}/>
-              <text x={totalW-48} y={-4} fontSize={8} fill="#889">목표</text>
-              <rect x={totalW-22} y={-12} width={10} height={10} fill="#27ae60" rx={2}/>
-              <text x={totalW-10} y={-4} fontSize={8} fill="#889">실적</text>
-            </svg>
-          );
-        })()}
-      </div>
-      <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",overflow:"hidden"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}><div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>연간 목표</div><div style={{fontSize:22,fontWeight:900,color:"#27ae60"}}>{annTgt>0?(annTgt/100000000).toFixed(1)+"억":"-"}</div></div><div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>연간 실적</div><div style={{fontSize:22,fontWeight:900,color:"#e67e22"}}>{annAct>0?(annAct/100000000).toFixed(2)+"억":"-"}</div></div><div style={{background:"#fff",borderRadius:10,boxShadow:"0 2px 8px #0001",padding:"14px 18px",textAlign:"center"}}><div style={{fontSize:11,color:"#889",marginBottom:4}}>달성률</div><div style={{fontSize:22,fontWeight:900,color:"#4f6ef7"}}>{annRate!=null?annRate+"%":"-"}</div></div></div><div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",overflow:"hidden"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{background:"#f4f6fb"}}>
@@ -1196,7 +1024,7 @@ function ChannelDashboard({channel,events,brand,bc,jasaMemos,saveJasaMemo,channe
 
         {/* 달성률 */}
         <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"16px 20px"}}>
-          <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:14}}>{channel} 달성률</div>
+          <div style={{fontSize:11,fontWeight:800,color:"#667",marginBottom:14}}>{channel} 행사 달성률</div>
           {cbTgt>0||cbAct>0?<AchBar label="CT (시티브리즈)" target={cbTgt} actual={cbAct} color="#4f6ef7"/>:<div style={{fontSize:11,color:"#ccc",marginBottom:8}}>시티브리즈 - 목표 미설정</div>}
           {atTgt>0||atAct>0?<AchBar label="아티드" target={atTgt} actual={atAct} color="#e67e22"/>:<div style={{fontSize:11,color:"#ccc"}}>아티드 - 목표 미설정</div>}
         </div>
@@ -1317,20 +1145,10 @@ function ManagerTab({managers,events,saveManagers,saveEvents,bc,chanNames=[]}) {
   const [mapChannel,setMapChannel] = React.useState("자사몰");
   const [mapMgr,setMapMgr] = React.useState("");
   const [mgMapping,setMgMapping] = React.useState(()=>{
-    // Firebase overrides가 이미 로드됐으면 사용, 없으면 localStorage fallback
-    if(window.__mgrMapping && Object.keys(window.__mgrMapping).length > 0) return window.__mgrMapping;
     const saved=loadLS("mgr_mapping_v1",null);
     return saved||{...DEFAULT_MANAGERS};
   });
-  const saveMapping = (m) => {
-    setMgMapping(m);
-    saveLS("mgr_mapping_v1",m);
-    // Firebase에도 저장
-    if(window.__saveOverrides) {
-      window.__mgrMapping = m;
-      window.__saveOverrides(window.__overrides, m);
-    }
-  };
+  const saveMapping = (m) => { setMgMapping(m); saveLS("mgr_mapping_v1",m); };
 
   const addManager = () => {
     const n = newName.trim();
@@ -1467,8 +1285,6 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
   const [impF,setImpF] = useState([]);
   const [chF,setChF] = useState([]);
   const [typeF,setTypeF] = useState([]);
-  const [mgrF,setMgrF] = useState([]);  // ⑤ 담당자 필터
-  const [showMgrLoad,setShowMgrLoad] = useState(false); // ⑤ 담당자 부하 패널
   const [selectedIds,setSelectedIds] = useState(new Set());
   const [editCell,setEditCell] = useState(null);
   const [sortKey,setSortKey] = useState(null);
@@ -1486,8 +1302,7 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
     const impOk=impF.length===0||impF.includes(e.importance);
     const chOk=chF.length===0||chF.includes(e.channel);
     const typeOk=typeF.length===0||typeF.includes(inferType(e));
-    const mgrOk=mgrF.length===0||mgrF.includes(e.manager||"미지정");
-    return statusOk&&impOk&&chOk&&typeOk&&mgrOk;
+    return statusOk&&impOk&&chOk&&typeOk;
   });
   const SORT_FN = {"상태":e=>getStatus(e.startDate,e.endDate).label,"중요도":e=>e.importance,"채널":e=>e.channel,"유형":e=>e.eventType||"","쿠폰(%)":e=>Number(e.coupon)||0,"쿠폰부담":e=>e.couponBurden||"","행사명":e=>e.name,"담당자":e=>e.manager||"","시작일":e=>e.startDate,"종료일":e=>e.endDate,"기간":e=>e.startDate,"목표매출":e=>Number(e.targetSales)||0,"실매출":e=>Number(e.actualSales)||0,"달성률":e=>e.targetSales&&e.actualSales?Number(e.actualSales)/Number(e.targetSales):0,"비고":e=>e.note||"","경로":e=>e.path||""};
   if(sortKey&&SORT_FN[sortKey]){
@@ -1502,18 +1317,9 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
 
   const toggleSort = (h) => { if(sortKey===h){setSortDir(d=>d==='asc'?'desc':'asc');}else{setSortKey(h);setSortDir('asc');} };
   const closeCell = () => { setEditCell(null); setCellCal(null); };
-  const OVERRIDE_FIELDS = new Set(["importance","eventType","targetSales","actualSales","path"]);
   const saveCell = (id,field,val) => {
     const next=events.map(x=>x.id===id?{...x,[field]:val}:x);
     if(saveEvents) saveEvents(next); else saveLS(LS_EVENTS,next);
-    // overrides 필드면 Firebase에도 별도 저장
-    if(OVERRIDE_FIELDS.has(field) && window.__saveOverrides) {
-      const ov = {...(window.__overrides||{})};
-      const key = String(id);
-      ov[key] = {...(ov[key]||{}), [field]: val};
-      window.__overrides = ov;
-      window.__saveOverrides(ov, window.__mgrMapping);
-    }
     return next;
   };
 
@@ -1566,44 +1372,18 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
       return [ev.brand,ev.channel,ev.name,eType,ev.startDate,ev.endDate,dur,ev.coupon||"",cBurden,ev.manager||"",imp,target,actual,rate,st,ev.note||""];
     });
     const wb=XLSX.utils.book_new();
-    const colWidths=[{wch:12},{wch:12},{wch:30},{wch:12},{wch:12},{wch:12},{wch:7},{wch:8},{wch:10},{wch:10},{wch:8},{wch:14},{wch:14},{wch:8},{wch:8},{wch:22}];
-
-    const applySheetStyle = (ws, rowCount) => {
-      ws["!cols"] = colWidths;
-      // 헤더 행 배경색
-      headers.forEach((_,ci) => {
-        const cellRef = XLSX.utils.encode_cell({r:0, c:ci});
-        if (!ws[cellRef]) ws[cellRef] = {v: headers[ci], t: "s"};
-        ws[cellRef].s = {
-          fill: {fgColor: {rgb: "2B4B9E"}},
-          font: {bold: true, color: {rgb: "FFFFFF"}, sz: 11},
-          alignment: {horizontal: "center", vertical: "center"},
-          border: {bottom: {style: "thin", color: {rgb: "FFFFFF"}}}
-        };
-      });
-      // 달성률 컬럼 색상 (col 13)
-      for (let r = 1; r <= rowCount; r++) {
-        const cellRef = XLSX.utils.encode_cell({r, c:13});
-        if (ws[cellRef] && ws[cellRef].v) {
-          const pct = parseInt(ws[cellRef].v);
-          const color = pct >= 100 ? "27AE60" : pct >= 80 ? "E67E22" : pct >= 0 ? "E74C3C" : "AAAAAA";
-          ws[cellRef].s = {font: {bold: true, color: {rgb: color}}};
-        }
-      }
-    };
-
     const wsAll=XLSX.utils.aoa_to_sheet([headers,...allRows]);
-    applySheetStyle(wsAll, allRows.length);
+    wsAll["!cols"]=[{wch:12},{wch:12},{wch:28},{wch:12},{wch:12},{wch:8},{wch:8},{wch:14},{wch:10},{wch:14},{wch:14},{wch:8},{wch:8},{wch:20}];
     XLSX.utils.book_append_sheet(wb,wsAll,"전체");
     DEFAULT_BRANDS.forEach(b=>{
       const bRows=allRows.filter(r=>r[0]===b);
       if(bRows.length>0){
         const ws=XLSX.utils.aoa_to_sheet([headers,...bRows]);
-        applySheetStyle(ws, bRows.length);
+        ws["!cols"]=wsAll["!cols"];
         XLSX.utils.book_append_sheet(wb,ws,b);
       }
     });
-    XLSX.writeFile(wb,"프로모션_캘린더_2026.xlsx",{bookType:"xlsx",bookSST:false,type:"binary",cellStyles:true});
+    XLSX.writeFile(wb,"프로모션_캘린더_2026.xlsx");
   };
 
   function InlineCellCal({evId,field,currentVal,otherVal,onSave}) {
@@ -1705,7 +1485,7 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
             <span style={{fontSize:10,fontWeight:700,color:"#889"}}>채널</span>
             {allChsInBrand.map(ch=><ChFBtn key={ch} ch={ch}/>)}
           </div>
-          <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap",paddingRight:12,marginRight:12,borderRight:"1px solid #e8ecf4"}}>
+          <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
             <span style={{fontSize:10,fontWeight:700,color:"#889"}}>유형</span>
             {EVENT_TYPES.filter(o=>o.val).map(({val,lbl,c})=>{
               const active=typeF.includes(val);
@@ -1713,59 +1493,7 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
                 style={{padding:"3px 8px",borderRadius:6,border:`1.5px solid ${active?c:"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:active?c+"15":"#fff",color:active?c:"#889"}}>{lbl}</button>;
             })}
           </div>
-          {/* ⑤ 담당자 필터 */}
-          {(()=>{
-            const allMgrs=[...new Set(events.filter(e=>brand==="전체"||e.brand===brand).map(e=>e.manager||"미지정"))].filter(Boolean).sort();
-            return (
-              <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap",paddingRight:12,marginRight:12,borderRight:"1px solid #e8ecf4"}}>
-                <span style={{fontSize:10,fontWeight:700,color:"#889"}}>담당자</span>
-                {allMgrs.map(mg=>{
-                  const active=mgrF.includes(mg);
-                  return <button key={mg} onClick={()=>setMgrF(p=>p.includes(mg)?p.filter(x=>x!==mg):[...p,mg])}
-                    style={{padding:"3px 8px",borderRadius:6,border:`1.5px solid ${active?"#7c5cbf":"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:active?"#7c5cbf15":"#fff",color:active?"#7c5cbf":"#889"}}>{mg}</button>;
-                })}
-              </div>
-            );
-          })()}
-          <button onClick={()=>setShowMgrLoad(p=>!p)}
-            style={{padding:"3px 10px",borderRadius:6,border:`1.5px solid ${showMgrLoad?"#7c5cbf":"#dde"}`,fontSize:10,fontWeight:700,cursor:"pointer",background:showMgrLoad?"#7c5cbf":"#fff",color:showMgrLoad?"#fff":"#889",whiteSpace:"nowrap"}}>
-            부하 요약
-          </button>
         </div>
-        {/* ⑤ 담당자 부하 요약 패널 */}
-        {showMgrLoad&&(()=>{
-          const now=new Date(); now.setHours(0,0,0,0);
-          const curMonthStr=`2026-${String(now.getMonth()+1).padStart(2,"0")}`;
-          const baseEvs=events.filter(e=>brand==="전체"||e.brand===brand);
-          const allMgrs=[...new Set(baseEvs.map(e=>e.manager||"미지정"))].filter(Boolean).sort();
-          return (
-            <div style={{padding:"10px 14px",background:"#f3f0ff",borderBottom:"1px solid #e0d8f8",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-start"}}>
-              <span style={{fontSize:10,fontWeight:800,color:"#7c5cbf",marginRight:4,alignSelf:"center"}}>담당자별 행사 현황</span>
-              {allMgrs.map(mg=>{
-                const mEvs=baseEvs.filter(e=>(e.manager||"미지정")===mg);
-                const total=mEvs.length;
-                const active=mEvs.filter(e=>getStatus(e.startDate,e.endDate).label==="진행중").length;
-                const thisMonth=mEvs.filter(e=>e.startDate.startsWith(curMonthStr)||e.endDate.startsWith(curMonthStr)||(e.startDate<curMonthStr&&e.endDate>=curMonthStr+"-01")).length;
-                const upcoming2=mEvs.filter(e=>{const s=parseDt(e.startDate);if(!s)return false;const d=Math.round((s-now)/86400000);return d>=0&&d<=14;}).length;
-                return (
-                  <div key={mg} style={{background:"#fff",borderRadius:8,padding:"8px 12px",minWidth:120,boxShadow:"0 1px 4px #7c5cbf15",border:"1px solid #d8cff0",cursor:"pointer"}}
-                    onClick={()=>setMgrF(p=>p.includes(mg)?p.filter(x=>x!==mg):[...p,mg])}>
-                    <div style={{fontWeight:800,fontSize:12,color:"#5a3f8a",marginBottom:4}}>{mg}</div>
-                    <div style={{display:"flex",gap:8,fontSize:10}}>
-                      <span style={{color:"#27ae60",fontWeight:700}}>진행{active}</span>
-                      <span style={{color:"#2B4B9E",fontWeight:700}}>이달{thisMonth}</span>
-                      <span style={{color:"#e67e22",fontWeight:700}}>D-14내{upcoming2}</span>
-                    </div>
-                    <div style={{fontSize:10,color:"#aaa",marginTop:2}}>전체 {total}건</div>
-                    <div style={{height:3,borderRadius:2,background:"#f0ecff",marginTop:6,overflow:"hidden"}}>
-                      <div style={{height:"100%",borderRadius:2,background:mgrF.includes(mg)?"#7c5cbf":"#c4b5f8",width:`${Math.min(thisMonth/5*100,100)}%`,transition:"width 0.3s"}}/>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
         {/* 테이블 */}
         {rows.length===0
           ?<div style={{padding:40,textAlign:"center",color:"#aaa",fontSize:14}}>조건에 맞는 행사가 없습니다.</div>
@@ -1910,74 +1638,6 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
           </div>
         }
       </>}
-    </div>
-  );
-}
-
-// ── UrgentBanner (D-3 임박 행사 슬라이딩 배너) ──────────────
-function UrgentBanner({events, brand, bc}) {
-  const [idx, setIdx] = React.useState(0);
-  const [visible, setVisible] = React.useState(true);
-  const now = new Date(); now.setHours(0,0,0,0);
-
-  const urgent = events.filter(e => {
-    if (brand !== "전체" && e.brand !== brand) return false;
-    const s = parseDt(e.startDate);
-    if (!s) return false;
-    const d = Math.round((s - now) / 86400000);
-    return d >= 0 && d <= 3;
-  }).sort((a,b) => a.startDate.localeCompare(b.startDate));
-
-  React.useEffect(() => {
-    if (urgent.length <= 1) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % urgent.length), 3500);
-    return () => clearInterval(t);
-  }, [urgent.length]);
-
-  if (!visible || urgent.length === 0) return null;
-
-  const ev = urgent[idx];
-  const s = parseDt(ev.startDate);
-  const dDay = Math.round((s - now) / 86400000);
-  const imp = ev.importance;
-  const dotColor = imp === "L" ? "#e74c3c" : imp === "3" ? "#e67e22" : imp === "2" ? "#f1c40f" : "#4f6ef7";
-  const dLabel = dDay === 0 ? "D-DAY" : `D-${dDay}`;
-
-  return (
-    <div style={{
-      background: `linear-gradient(90deg, ${bc.tag}18 0%, ${bc.tag}08 100%)`,
-      borderBottom: `2px solid ${bc.tag}33`,
-      padding: "5px 24px",
-      display: "flex", alignItems: "center", gap: 10,
-      fontSize: 12, position: "relative", overflow: "hidden"
-    }}>
-      <div style={{
-        background: bc.tag, color: "#fff", borderRadius: 6,
-        padding: "2px 8px", fontWeight: 900, fontSize: 11, flexShrink: 0, letterSpacing: 1
-      }}>{dLabel}</div>
-      <div style={{width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0}}/>
-      <div style={{fontWeight: 700, color: "#2c3e50", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
-        {ev.brand !== "전체" && brand === "전체" && (
-          <span style={{fontSize: 10, color: "#fff", background: ev.brand === "시티브리즈" ? "#2B4B9E" : "#e67e22",
-            borderRadius: 4, padding: "1px 6px", marginRight: 6, fontWeight: 700}}>{ev.brand}</span>
-        )}
-        {ev.channel && <span style={{color: "#888", fontWeight: 500, marginRight: 4}}>[{ev.channel}]</span>}
-        {ev.name}
-      </div>
-      {urgent.length > 1 && (
-        <div style={{display: "flex", gap: 4, flexShrink: 0}}>
-          {urgent.map((_,i) => (
-            <div key={i} onClick={() => setIdx(i)} style={{
-              width: i === idx ? 16 : 6, height: 6, borderRadius: 3,
-              background: i === idx ? bc.tag : "#ccc", cursor: "pointer", transition: "width 0.3s"
-            }}/>
-          ))}
-        </div>
-      )}
-      <button onClick={() => setVisible(false)} style={{
-        background: "none", border: "none", cursor: "pointer",
-        color: "#aaa", fontSize: 14, padding: "0 4px", lineHeight: 1, flexShrink: 0
-      }}>×</button>
     </div>
   );
 }
@@ -2209,7 +1869,7 @@ function KPIBanner({events,brand,bc,chanNames,viewMonth}) {
       <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
         {chanAchieve.length>0&&(
           <div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 10px #0001",padding:"18px 20px",flex:"1 1 240px"}}>
-            <div style={{fontSize:10,fontWeight:800,color:"#aaa",letterSpacing:1.5,marginBottom:12}}>채널별 달성률</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#aaa",letterSpacing:1.5,marginBottom:12}}>채널별 행사 달성률</div>
             <div style={{display:"flex",flexDirection:"column",gap:9}}>
               {chanAchieve.map(({ch,tgt,act,rate,c})=>{
                 const rc=rate>=100?"#27ae60":rate>=80?"#f4a233":"#e53935";
@@ -2293,92 +1953,39 @@ function KPIBanner({events,brand,bc,chanNames,viewMonth}) {
 // ── App (메인) ────────────────────────────────────────
 function App() {
   const [events,setEvents] = useState(PRESET_EVENTS);
-  const [syncedAt,setSyncedAt] = useState(null);
 
   // Firebase 실시간 연동
   React.useEffect(() => {
-    // overrides 로드 완료 콜백 - 이미 events가 있으면 overrides 재적용
-    window.__onOverridesLoaded = () => {
-      setEvents(prev => {
-        if (!prev || prev.length === 0) return prev;
-        const ov = window.__overrides || {};
-        const mg = window.__mgrMapping || {};
-        return prev.map(ev => {
-          const o = ov[String(ev.id)] || {};
-          let manager = ev.manager;
-          if (!manager && mg[ev.channel] && mg[ev.channel][ev.brand]) {
-            manager = mg[ev.channel][ev.brand];
-          }
-          return {
-            ...ev,
-            manager,
-            ...(o.importance !== undefined ? { importance: o.importance } : {}),
-            ...(o.eventType !== undefined ? { eventType: o.eventType } : {}),
-            ...(o.targetSales !== undefined ? { targetSales: o.targetSales } : {}),
-            ...(o.actualSales !== undefined ? { actualSales: o.actualSales } : {}),
-            ...(o.path !== undefined ? { path: o.path } : {}),
-          };
-        });
-      });
-    };
     // Firebase에서 받은 데이터가 PRESET과 다를 때만 적용
     window.__setFbEvents = (data) => {
       const list = data.list || data;
-      if (!list || list.length === 0) {
-        console.log("Firebase 데이터 없음 → PRESET 유지");
+      const ver = data.version || "";
+      // 버전이 v2026-03 이 아니면 → 구버전 데이터 → PRESET으로 강제 교체
+      if (ver !== "v2026-03" || !list || list.length === 0) {
+        console.log("구버전 데이터 감지 → PRESET으로 초기화");
+        window.__saveToFirebase && window.__saveToFirebase(PRESET_EVENTS);
         setEvents(PRESET_EVENTS);
         saveLS(LS_EVENTS, PRESET_EVENTS);
         return;
       }
-      // overrides + 담당자 매칭 병합
-      const applyOverrides = (evList) => {
-        const ov = window.__overrides || {};
-        const mg = window.__mgrMapping || {};
-        return evList.map(ev => {
-          const o = ov[String(ev.id)] || {};
-          // 담당자: 비어있으면 mgMapping에서 자동 매칭
-          let manager = ev.manager;
-          if (!manager && mg[ev.channel] && mg[ev.channel][ev.brand]) {
-            manager = mg[ev.channel][ev.brand];
-          }
-          return {
-            ...ev,
-            manager,
-            ...(o.importance !== undefined ? { importance: o.importance } : {}),
-            ...(o.eventType !== undefined ? { eventType: o.eventType } : {}),
-            ...(o.targetSales !== undefined ? { targetSales: o.targetSales } : {}),
-            ...(o.actualSales !== undefined ? { actualSales: o.actualSales } : {}),
-            ...(o.path !== undefined ? { path: o.path } : {}),
-          };
-        });
-      };
-      const merged = applyOverrides(list);
-      console.log("Firebase 데이터 적용: " + merged.length + "건");
-      setEvents(merged);
-      saveLS(LS_EVENTS, merged);
-      // updatedAt 파싱해서 저장
-      if (data.updatedAt) {
-        try {
-          const d = new Date(data.updatedAt);
-          const pad = n => String(n).padStart(2,"0");
-          setSyncedAt(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`);
-        } catch(e) {}
-      }
+      // Campaign 등 중복 행사 제거 (채널+행사명+시작일 기준)
+      const seen = new Set();
+      const deduped = list.filter(ev => {
+        const key = (ev.channel||'')+'|'+(ev.name||'')+'|'+(ev.start||'');
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setEvents(deduped);
+      saveLS(LS_EVENTS, deduped);
     };
-    // 3초 후에도 Firebase 미연결이면 로컬 모드 전환만 (Firebase 덮어쓰기 안 함)
+    // 3초 후에도 Firebase 데이터 없으면 PRESET으로 Firebase 초기화
     const t = setTimeout(() => {
-      if (!window.__fbReady) {
-        console.log("Firebase 연결 지연 → 로컬 모드");
+      if (!window.__fbReady && window.__saveToFirebase) {
+        window.__saveToFirebase(PRESET_EVENTS);
       }
     }, 3000);
     return () => clearTimeout(t);
-  }, []);
-
-  // 실적 데이터 Firebase 로드 (앱 시작 시 1회)
-  const [salesVer, setSalesVer] = useState(0); // 실적 로드 완료 시 리렌더 트리거
-  React.useEffect(() => {
-    window.__onSalesApplied = () => setSalesVer(v => v + 1);
-    loadSalesFromFirebase();
   }, []);
   const [channels,setChannels] = useState(()=>loadLS(LS_CHANNELS,DEFAULT_CHANNELS));
   const [brand,setBrand] = useState("전체");
@@ -2419,6 +2026,7 @@ function App() {
   const [copied,setCopied] = useState(false);
   const [tooltip,setTooltip] = useState(null);
   const [fbStatus,setFbStatus] = useState("connecting");
+  const [guideOpen,setGuideOpen] = useState(false);
   const [fbSaving,setFbSaving] = useState(false);
   // managers: localStorage v2로 버전업, ALL_MANAGERS 기준으로만 허용
   const [managers,setManagers] = useState(()=>{
@@ -2487,7 +2095,7 @@ function App() {
 
   const openWeekly = () => {
     const now=TODAY;
-    const past=new Date(TODAY); past.setDate(past.getDate()-14);
+    const past=new Date(TODAY); past.setDate(past.getDate()-31);
     const future=new Date(TODAY); future.setDate(future.getDate()+31);
     const filtered=events.filter(e=>{
       if(brand!=="전체"&&e.brand!==brand) return false;
@@ -2499,10 +2107,7 @@ function App() {
       if(!grouped[key]) grouped[key]=[];
       grouped[key].push(ev);
     });
-    // 전채널 목록: channels + MKT + 전채널 포함
-    const chOrder=[...channels.map(c=>c.name)];
-    if(!chOrder.includes("MKT")) chOrder.push("MKT");
-    if(!chOrder.includes("전채널")) chOrder.push("전채널");
+    const chOrder=channels.map(c=>c.name);
     let text="";
     chOrder.forEach(ch=>{
       DEFAULT_BRANDS.forEach(br=>{
@@ -2511,11 +2116,11 @@ function App() {
         const evs=grouped[key];
         if(!evs||evs.length===0) return;
         text+=`[${br} · ${ch}]\n`;
-        evs.slice().sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name)).slice(0,7).forEach(ev=>{
+        evs.slice().sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name)).slice(0,5).forEach(ev=>{
           const s=parseDt(ev.startDate),e2=parseDt(ev.endDate);
           const fmt2=d=>`${d.getMonth()+1}/${d.getDate()}일(${WEEK[d.getDay()]})`;
           const range=s&&e2?`${fmt2(s)} ~ ${fmt2(e2)}`:"";
-          text+=`${range} ${ev.name}\n`;
+          text+=`${range} ${ev.name}${ev.coupon?` (${ev.coupon}%쿠폰)`:""}\n`;
         });
         text+="\n";
       });
@@ -2574,7 +2179,7 @@ function App() {
       <div style={{background:`linear-gradient(135deg,${bc.tag} 0%,${bc.border}cc 100%)`,padding:"0 24px",position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
         <div style={{padding:"14px 0 12px",flex:1}}>
           <div style={{fontWeight:900,fontSize:21,color:"#fff",letterSpacing:-1}}>2026 프로모션 캘린더</div>
-          <div style={{fontSize:11,color:"#ffffffaa",marginTop:1}}>시티브리즈 · 아티드 · 채널별 프로모션 상세{syncedAt && <span style={{marginLeft:10,opacity:0.8}}>· 업데이트 {syncedAt}</span>}</div>
+          <div style={{fontSize:11,color:"#ffffffaa",marginTop:1}}>시티브리즈 · 아티드 · 채널별 프로모션 상세</div>
         </div>
         <div style={{display:"flex",gap:8,marginRight:16}}>
           {["전체",...DEFAULT_BRANDS].map(b=>(
@@ -2589,12 +2194,9 @@ function App() {
           </span>
         </div>
         <button onClick={openWeekly} style={{background:"#ffffff22",border:"2px solid #ffffff55",borderRadius:10,padding:"7px 16px",color:"#fff",fontSize:12,fontWeight:800,cursor:"pointer"}}>주간회의</button>
-        <button onClick={exportAll} style={{background:"#ffffff22",border:"2px solid #ffffff55",borderRadius:10,padding:"7px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>엑셀</button>
+        <button onClick={()=>setGuideOpen(true)} style={{background:"#ffffff22",border:"2px solid #ffffff55",borderRadius:10,padding:"7px 16px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>📖 가이드</button>
         <button onClick={openAdd} style={{background:"#fff",color:bc.tag,border:"none",borderRadius:10,padding:"8px 18px",fontWeight:800,fontSize:14,cursor:"pointer",boxShadow:"0 2px 8px #0002"}}>+ 행사 추가</button>
       </div>
-
-      {/* D-3 임박 행사 배너 */}
-      <UrgentBanner events={events} brand={brand} bc={bc}/>
 
       {/* 내비 탭 */}
       <div style={{position:"sticky",top:60,zIndex:200,background:"#f0f2f8",borderBottom:"1px solid #dde4f0"}}>
@@ -2639,42 +2241,6 @@ function App() {
         )}
       </div>
 
-      {/* ② D-Day 임박 배너 */}
-      {(()=>{
-        const today=new Date(); today.setHours(0,0,0,0);
-        const upcoming=events.filter(e=>{
-          if(brand!=="전체"&&e.brand!==brand) return false;
-          const s=parseDt(e.startDate); if(!s) return false;
-          const diff=Math.round((s-today)/86400000);
-          return diff>=0&&diff<=3;
-        }).sort((a,b)=>a.startDate.localeCompare(b.startDate)).slice(0,8);
-        if(!upcoming.length) return null;
-        const items=[...upcoming,...upcoming,...upcoming];
-        return (
-          <div style={{background:"#1a2340",overflow:"hidden",position:"relative",height:30,flexShrink:0}}>
-            <div style={{display:"flex",alignItems:"center",height:"100%"}}>
-              <div style={{background:"#e67e22",color:"#fff",fontWeight:800,fontSize:10,padding:"0 12px",height:"100%",display:"flex",alignItems:"center",whiteSpace:"nowrap",letterSpacing:0.5,flexShrink:0}}>🔥 임박</div>
-              <div style={{flex:1,overflow:"hidden"}}>
-                <div style={{display:"flex",animation:"dday-scroll 28s linear infinite",willChange:"transform"}}>
-                  {items.map((ev,i)=>{
-                    const diff=Math.round((parseDt(ev.startDate)-today)/86400000);
-                    const lbl=diff===0?"D-0 오늘":diff===1?"D-1 내일":`D-${diff}`;
-                    const col=diff===0?"#ff6b6b":diff===1?"#ffd93d":"#74c0fc";
-                    const bC=ev.brand==="시티브리즈"?"#7ec8ff":"#ffb347";
-                    return(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"0 20px",borderRight:"1px solid #ffffff12",height:30,flexShrink:0}}>
-                      <span style={{background:bC,color:"#111",borderRadius:3,padding:"1px 4px",fontWeight:800,fontSize:9}}>{ev.brand==="시티브리즈"?"CT":"AT"}</span>
-                      <span style={{color:"#ffffffcc",fontSize:11,fontWeight:500,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.name}</span>
-                      <span style={{color:col,fontWeight:800,fontSize:10,whiteSpace:"nowrap"}}>{lbl}</span>
-                    </span>);
-                  })}
-                </div>
-              </div>
-            </div>
-            <style>{`@keyframes dday-scroll{0%{transform:translateX(0)}100%{transform:translateX(-33.33%)}}`}</style>
-          </div>
-        );
-      })()}
-
       {/* 본문 */}
       <div style={{padding:"0 0 48px"}}>
         <div style={{padding:"22px 22px 0"}}>
@@ -2683,7 +2249,6 @@ function App() {
                 channel={["자사몰","29CM","W컨셉","무신사","지그재그"][viewMonth-15]}
                 events={events} brand={brand} bc={bc}
                 jasaMemos={jasaMemos} saveJasaMemo={saveJasaMemo}
-                salesVer={salesVer}
                 channelStrats={channelStrats} setChannelStrats={setChannelStrats} saveStrat={saveStrat}/>
             : viewMonth===14
             ? <ManagerTab managers={managers} events={events} saveManagers={saveManagers} saveEvents={saveEvents} bc={bc} chanNames={chanNames}/>
@@ -2766,6 +2331,169 @@ function App() {
         </div>
       </div>
 
+
+      {/* 가이드 모달 */}
+      {guideOpen&&(
+        <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'#00000066',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}} onClick={()=>setGuideOpen(false)}>
+          <div style={{background:'#fff',borderRadius:16,maxWidth:780,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px #0004'}} onClick={e=>e.stopPropagation()}>
+            <div style={{background:'linear-gradient(135deg,#2d2d2d,#4a4a6a)',padding:'28px 32px 20px',borderRadius:'16px 16px 0 0',position:'sticky',top:0,zIndex:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div>
+                  <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:4}}>2026 프로모션 캘린더</div>
+                  <div style={{fontSize:13,color:'#ffffffaa',fontWeight:600}}>사용 가이드 · 시티브리즈 · 아티드 | 온라인 채널 프로모션 통합 관리 시스템</div>
+                  <div style={{fontSize:11,color:'#ffffff77',marginTop:6}}>🔗 https://mklee4078.github.io/promo-calendar/</div>
+                </div>
+                <button onClick={()=>setGuideOpen(false)} style={{background:'#ffffff22',border:'none',color:'#fff',fontSize:20,borderRadius:8,padding:'4px 10px',cursor:'pointer',lineHeight:1}}>✕</button>
+              </div>
+            </div>
+            <div style={{padding:'28px 32px'}}>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>1. 시스템 개요</div>
+                <p style={{fontSize:13,color:'#445',lineHeight:1.8,margin:'0 0 8px'}}>2026 프로모션 캘린더는 시티브리즈·아티드 양 브랜드의 전 채널 프로모션 일정 및 실적을 한 화면에서 관리하는 웹 기반 도구입니다.</p>
+                <p style={{fontSize:13,color:'#445',lineHeight:1.8,margin:0}}>별도 설치 없이 웹 브라우저에서 바로 접속 가능하며, 엑셀 원본 파일이 업데이트될 때마다 자동으로 데이터가 동기화됩니다.</p>
+              </div>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>2. 화면 구성 및 탭 안내</div>
+                <p style={{fontSize:13,color:'#445',lineHeight:1.8,margin:'0 0 10px'}}>상단 탭으로 뷰를 전환합니다. 좌측에 브랜드 필터(전체 / 시티브리즈 / 아티드)가 있습니다.</p>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  <div style={{background:'#f6f8ff',borderRadius:8,padding:'8px 12px'}}><div style={{fontSize:12,fontWeight:700,color:'#4a6cf7',marginBottom:2}}>전체 연간</div><div style={{fontSize:11,color:'#667'}}>연간 행사 타임라인 전체 보기</div></div>
+                  <div style={{background:'#f6f8ff',borderRadius:8,padding:'8px 12px'}}><div style={{fontSize:12,fontWeight:700,color:'#4a6cf7',marginBottom:2}}>1월~12월 탭</div><div style={{fontSize:11,color:'#667'}}>월별 캘린더 뷰</div></div>
+                  <div style={{background:'#f6f8ff',borderRadius:8,padding:'8px 12px'}}><div style={{fontSize:12,fontWeight:700,color:'#4a6cf7',marginBottom:2}}>전체 행사목록</div><div style={{fontSize:11,color:'#667'}}>테이블 형태 전체 조회 + 편집</div></div>
+                  <div style={{background:'#f6f8ff',borderRadius:8,padding:'8px 12px'}}><div style={{fontSize:12,fontWeight:700,color:'#4a6cf7',marginBottom:2}}>담당자 관리</div><div style={{fontSize:11,color:'#667'}}>채널×브랜드 담당자 지정</div></div>
+                  <div style={{background:'#f6f8ff',borderRadius:8,padding:'8px 12px'}}><div style={{fontSize:12,fontWeight:700,color:'#4a6cf7',marginBottom:2}}>채널 대시보드</div><div style={{fontSize:11,color:'#667'}}>채널별 목표·실적·행사 분석</div></div>
+                </div>
+              </div>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>3. 데이터 흐름 (자동화 구조)</div>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:12,flexWrap:'wrap'}}>
+                  <span style={{background:'#2d2d2d',color:'#fff',padding:'5px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>엑셀 원본</span>
+                  <span style={{color:'#aaa',fontWeight:700}}>→</span>
+                  <span style={{background:'#2d2d2d',color:'#fff',padding:'5px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>Python 변환</span>
+                  <span style={{color:'#aaa',fontWeight:700}}>→</span>
+                  <span style={{background:'#2d2d2d',color:'#fff',padding:'5px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>Firebase</span>
+                  <span style={{color:'#aaa',fontWeight:700}}>→</span>
+                  <span style={{background:'#2d2d2d',color:'#fff',padding:'5px 10px',borderRadius:6,fontSize:12,fontWeight:700}}>캘린더 웹</span>
+                </div>
+                <div style={{background:'#fffbe6',border:'1px solid #ffe58f',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#7a5a00',marginBottom:12}}>
+                  💡 <b>자동 실행:</b> 평일 오전 10시~오후 7시, 매 정시마다 자동 실행됩니다. 엑셀 저장 후 다음 정시에 자동 반영됩니다.
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:'#2d2d2d',marginBottom:4}}>3-1. 행사 데이터</div>
+                <p style={{fontSize:12,color:'#445',lineHeight:1.8,margin:'0 0 10px'}}>Python 스크립트가 구글 시트의 타임라인 형태를 행사 목록으로 변환합니다.</p>
+                <div style={{fontSize:13,fontWeight:700,color:'#2d2d2d',marginBottom:4}}>3-2. 실적 데이터</div>
+                <p style={{fontSize:12,color:'#445',lineHeight:1.8,margin:'0 0 8px'}}>_2026_거래액.xlsx 파일에서 월별 브랜드/채널별 목표·실적을 가져옵니다.</p>
+                <div style={{background:'#fff0f0',border:'1px solid #ffc0c0',borderRadius:8,padding:'8px 12px',fontSize:11,color:'#a03030'}}>
+                  ⚠️ 거래액 시트의 숫자는 원(₩) 단위로 저장됩니다. 셀 서식이 백만으로 보여도 실제 값은 전체 금액입니다.
+                </div>
+              </div>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>4. 주요 기능 사용법</div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#4a6cf7',marginBottom:5}}>4-1. 월별 캘린더 뷰</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>상단 탭에서 월 선택 (1월~12월)</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>좌측 브랜드 버튼으로 시티브리즈 / 아티드 / 전체 전환</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>날짜 셀 클릭 → 상세 정보 (쿠폰 조건, 담당자 등)</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>중요도 색상: 빨강=매우중요 / 주황=중요 / 파랑=보통 / 회색=낮음</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#4a6cf7',marginBottom:5}}>4-2. 행사 목록 탭</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>전체 행사를 테이블 형태로 조회</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>실매출, 중요도, 유형, 목표매출, 경로 → 클릭하여 직접 수정 가능</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>수정 내용은 Firebase에 자동 저장, 스크립트 재업로드 후에도 유지</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#4a6cf7',marginBottom:5}}>4-3. 채널 대시보드</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>자사몰 / 29CM / W컨셉 / 무신사 / 지그재그 채널 선택</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>연간 버튼: 월별 목표·실적 표와 연간 달성률 확인</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>시즌 전략 편집으로 월별 전략 내용 수정 가능</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#4a6cf7',marginBottom:5}}>4-4. 주간회의 자료</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>헤더 오른쪽 주간회의 버튼 클릭</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>오늘 기준 D-14~D+31 범위 행사가 채널별로 자동 정리 (채널별 최대 7건)</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>브랜드 필터 적용 시 해당 브랜드만 출력</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#4a6cf7',marginBottom:5}}>4-5. 담당자 관리</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>담당자 탭에서 채널 × 브랜드별 기본 담당자 지정</li>
+                    <li style={{fontSize:12,color:'#445',lineHeight:1.9}}>설정한 담당자는 Firebase에 저장, 스크립트 재업로드 후에도 유지</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>5. 웹에서 수정한 내용 보존 규칙</div>
+                <p style={{fontSize:13,color:'#445',lineHeight:1.8,margin:'0 0 10px'}}>스크립트가 새 데이터를 업로드해도 아래 항목은 웹에서 수정한 값이 유지됩니다.</p>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}}>
+                  {['실매출','중요도','유형','목표매출','경로','담당자 매핑'].map(t=>(
+                    <span key={t} style={{background:'#e8f4e8',color:'#2a7a2a',borderRadius:20,padding:'3px 10px',fontSize:12,fontWeight:700}}>{t}</span>
+                  ))}
+                </div>
+                <div style={{background:'#fffbe6',border:'1px solid #ffe58f',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#7a5a00'}}>
+                  💡 실매출, 중요도 등은 웹에서 직접 입력/수정하면 다음 스크립트 실행 후에도 사라지지 않습니다.
+                </div>
+              </div>
+
+              <div style={{marginBottom:28}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>6. 데이터 수동 업데이트 방법</div>
+                <ol style={{margin:0,paddingLeft:18}}>
+                  <li style={{fontSize:12,color:'#445',lineHeight:2}}>탐색기에서 이동: G &gt; 공유 드라이브 &gt; 영업마케팅실 &gt; 1.온라인 &gt; 99.개인폴더 &gt; 이민경 &gt; 클로드 &gt; 프로모션 캘린더 &gt; python(변환기)</li>
+                  <li style={{fontSize:12,color:'#445',lineHeight:2}}>프로모캘린더_자동실행.bat 파일 더블클릭</li>
+                  <li style={{fontSize:12,color:'#445',lineHeight:2}}>콘솔 창에서 Firebase 업로드 완료 확인</li>
+                  <li style={{fontSize:12,color:'#445',lineHeight:2}}>웹사이트 새로고침</li>
+                </ol>
+                <div style={{background:'#fff0f0',border:'1px solid #ffc0c0',borderRadius:8,padding:'8px 12px',fontSize:11,color:'#a03030',marginTop:10}}>
+                  ⚠️ 배치파일 실행 중에는 엑셀 파일을 닫아두세요. 파일이 열려있으면 읽기 오류가 날 수 있습니다.
+                </div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:16,fontWeight:800,color:'#2d2d2d',marginBottom:10,paddingBottom:6,borderBottom:'2px solid #e0e4f0'}}>7. 엑셀 원본 작성 시 주의사항</div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#2d2d2d',marginBottom:4}}>◾ 프로모션 시트 (_2026_온라인_프로모션.xlsx)</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>시트명에 일정 또는 2026이 포함되어야 합니다</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>기획전명은 별도 행에 텍스트로 명시 (병합 셀 안에 있어도 인식)</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>날짜 범위는 셀 배경색 블록으로 표시 (흰색·회색·검정은 날짜 미인식)</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>행사명에 날짜 포함 시 (예: 1/5~1/11) 시작일/종료일 우선 파싱</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#2d2d2d',marginBottom:4}}>◾ 인플루언서 시트</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>인플루언서 시트명이 정확해야 합니다</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>헤더에 인플루언서/유튜버, 비용(VAT+), 착장매출 컬럼이 있어야 합니다</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>브랜드·채널·날짜가 같은 행의 착장매출이 실매출로 자동 매칭됩니다</li>
+                  </ul>
+                </div>
+                <div style={{marginBottom:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#2d2d2d',marginBottom:4}}>◾ 거래액 시트 (_2026_거래액.xlsx)</div>
+                  <ul style={{margin:0,paddingLeft:18}}>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>수치는 원(₩) 단위로 입력 (셀 서식이 만원이어도 실제 값은 원 단위)</li>
+                    <li style={{fontSize:11,color:'#445',lineHeight:1.9}}>행 구조 변경 시 스크립트 설정 변경 필요</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div style={{textAlign:'center',paddingTop:16,borderTop:'1px solid #e0e4f0',fontSize:11,color:'#aaa'}}>
+                영업마케팅실 온라인팀 · 2026 프로모션 캘린더
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 주간회의 모달 */}
       {weeklyModal&&(
         <div onClick={()=>setWeeklyModal(false)} style={{position:"fixed",inset:0,background:"#00000055",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -2773,7 +2501,7 @@ function App() {
             <div style={{background:`linear-gradient(135deg,${bc.tag},${bc.border}99)`,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div>
                 <div style={{fontWeight:800,fontSize:15,color:"#fff"}}>주간회의 자료</div>
-                <div style={{fontSize:10,color:"#ffffffaa",marginTop:2}}>진행중 + 31일 이내 예정 · 채널별 최대 7건</div>
+                <div style={{fontSize:10,color:"#ffffffaa",marginTop:2}}>진행중 + 31일 이내 예정 · 채널별 최대 5건</div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={copyWeekly} style={{background:copied?"#27ae60":"#fff",color:copied?"#fff":bc.tag,border:"none",borderRadius:8,padding:"7px 16px",fontWeight:800,fontSize:13,cursor:"pointer",transition:"all 0.2s"}}>
