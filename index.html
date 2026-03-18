@@ -180,8 +180,8 @@ const IMPORTANCE_LIST = [
 const IMP_COLOR = {"L":"#8b5cf6","3":"#e74c3c","2":"#e67e22","1":"#f1c40f","0":"#bbb"};
 const IMP_STAR = {"L":"L","3":"⭐⭐⭐","2":"⭐⭐","1":"⭐","0":""};
 const MONTH_NAMES = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
-const WEEKDAYS = ["일","월","화","수","목","금","토"];
-const WEEK = ["일","월","화","수","목","금","토"];
+const WEEKDAYS = ["월","화","수","목","금","토","일"];
+const WEEK = ["월","화","수","목","금","토","일"];
 const HOLIDAYS_2026 = {
   "2026-01-01":"신정","2026-01-28":"설날연휴","2026-01-29":"설날","2026-01-30":"설날연휴",
   "2026-03-01":"삼일절","2026-05-05":"어린이날","2026-05-25":"부처님오신날",
@@ -313,7 +313,7 @@ function FormModal({form,setForm,editId,chanNames,bc,onSave,onDelete,onClose,man
 
   function CalPicker({target}) {
     const {y,m}=calMon;
-    const first=new Date(y,m,1).getDay();
+    const first=(new Date(y,m,1).getDay()+6)%7;
     const days=new Date(y,m+1,0).getDate();
     const cells=Array(first).fill(null).concat(Array.from({length:days},(_,i)=>i+1));
     const currentVal=target==="start"?form.startDate:form.endDate;
@@ -346,7 +346,7 @@ function FormModal({form,setForm,editId,chanNames,bc,onSave,onDelete,onClose,man
               }}
               style={{padding:"4px 0",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:isSel?800:400,
                 background:isSel?bc.tag:"transparent",
-                color:isSel?"#fff":isOther?bc.tag:dow===0?"#e05c5c":dow===6?"#4f6ef7":"#334",
+                color:isSel?"#fff":isOther?bc.tag:dow===0?"#e05c5c":dow===5?"#4f6ef7":"#334",
                 border:isOther?`1px solid ${bc.tag}`:"none",textAlign:"center"
               }}>{d}</div>
             );
@@ -652,7 +652,7 @@ function QuickEditPanel({ev,bc,chanNames,onClose,onFullEdit,onSave,onDelete}) {
 
 // ── MonthView (월별 캘린더) ────────────────────────────
 function MonthView({month,events,brand,chanNames,bc,collapsed,toggleCollapse,openEdit}) {
-  const first = new Date(Y,month,1).getDay();
+  const first = (new Date(Y,month,1).getDay()+6)%7;
   const days = new Date(Y,month+1,0).getDate();
   const cells = Array(first).fill(null).concat(Array.from({length:days},(_,i)=>i+1));
   const compact = cells.length > 35;
@@ -671,7 +671,7 @@ function MonthView({month,events,brand,chanNames,bc,collapsed,toggleCollapse,ope
       </div>
       {!collapsed["month_"+month]&&<>
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"#f8f9fc"}}>
-          {WEEKDAYS.map((w,i)=><div key={w} style={{textAlign:"center",padding:"6px 0",fontSize:11,fontWeight:700,color:i===0?"#e05c5c":i===6?"#4f6ef7":"#889"}}>{w}</div>)}
+          {WEEKDAYS.map((w,i)=><div key={w} style={{textAlign:"center",padding:"6px 0",fontSize:11,fontWeight:700,color:i===6?"#e05c5c":i===5?"#4f6ef7":"#889"}}>{w}</div>)}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,background:"#edf0f6"}}>
           {cells.map((d,i)=>{
@@ -680,10 +680,10 @@ function MonthView({month,events,brand,chanNames,bc,collapsed,toggleCollapse,ope
             const dow=(first+d-1)%7,isToday=dk===TODAY;
             return (
               <div key={dk} style={{background:"#fff",minHeight:90,padding:"0 0 4px",outline:isToday?"2px solid #4f6ef7":"none",outlineOffset:"-1px",position:"relative"}}>
-                <div style={{background:isToday?"#4f6ef7":dow===0||hol?"#fff0f0":dow===6?"#f0f4ff":"#f8f9fc",padding:"4px 5px 3px",marginBottom:3,borderBottom:`1px solid ${dow===0||hol?"#fce4e4":dow===6?"#e4eaff":"#edf0f6"}`,display:"flex",alignItems:"center",gap:4}}>
+                <div style={{background:isToday?"#4f6ef7":dow===6||hol?"#fff0f0":dow===5?"#f0f4ff":"#f8f9fc",padding:"4px 5px 3px",marginBottom:3,borderBottom:`1px solid ${dow===6||hol?"#fce4e4":dow===5?"#e4eaff":"#edf0f6"}`,display:"flex",alignItems:"center",gap:4}}>
                   {isToday
                     ?<span style={{color:"#fff",fontSize:11,fontWeight:900,lineHeight:"18px"}}>TODAY {d}</span>
-                    :<span style={{fontSize:14,fontWeight:900,color:hol?"#e05c5c":dow===0?"#e05c5c":dow===6?"#4f6ef7":"#334"}}>{d}</span>
+                    :<span style={{fontSize:14,fontWeight:900,color:hol?"#e05c5c":dow===6?"#e05c5c":dow===5?"#4f6ef7":"#334"}}>{d}</span>
                   }
                   {hol&&<span style={{fontSize:7,color:"#e05c5c",fontWeight:700}}>{hol}</span>}
                 </div>
@@ -779,7 +779,7 @@ function ChannelView({month,events,brand,channels,chanNames,bc,collapsed,toggleC
             <div style={{display:"flex",background:"#f0f2f8",flex:1}}>
               {dateArr.map(d=>{
                 const dk=dkey(Y2,month,d),dow=new Date(Y2,month,d).getDay(),isHol=!!HOLIDAYS_2026[dk],isTd=dk===TODAY;
-                return <div key={d} style={{minWidth:CW,width:CW,height:40,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:isTd?900:600,color:isTd?"#fff":isHol?"#e05c5c":dow===0?"#e05c5c":dow===6?"#4f6ef7":"#778",background:isTd?"#4f6ef7":isHol?"#fff0f0":dow===6?"#f0f4ff":"transparent",borderLeft:dow===1?"2px solid #dde":"none",boxSizing:"border-box"}}>{d}</div>;
+                return <div key={d} style={{minWidth:CW,width:CW,height:40,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:isTd?900:600,color:isTd?"#fff":isHol?"#e05c5c":dow===6?"#e05c5c":dow===5?"#4f6ef7":"#778",background:isTd?"#4f6ef7":isHol?"#fff0f0":dow===5?"#f0f4ff":"transparent",borderLeft:dow===0?"2px solid #dde":"none",boxSizing:"border-box"}}>{d}</div>;
               })}
             </div>
           </div>
@@ -801,7 +801,7 @@ function ChannelView({month,events,brand,channels,chanNames,bc,collapsed,toggleC
                     const dk=dkey(Y2,month,d),evs=eForDay(ch,dk);
                     const dow=new Date(Y2,month,d).getDay(),isHol=!!HOLIDAYS_2026[dk];
                     return (
-                      <div key={dk} style={{minWidth:CW,width:CW,borderRight:"1px solid #e8ecf4",position:"relative",overflow:"hidden",background:isHol?"#fff8f8":dow===6?"#f8f8ff":dow===0?"#fff8f8":"transparent"}}
+                      <div key={dk} style={{minWidth:CW,width:CW,borderRight:"1px solid #e8ecf4",position:"relative",overflow:"hidden",background:isHol?"#fff8f8":dow===5?"#f8f8ff":dow===6?"#fff8f8":"transparent"}}
                         onMouseEnter={e=>{if(evs.length&&!dragging.on)setTooltip({evs,x:e.clientX,y:e.clientY,dk,ch:ch.name});}}
                         onMouseLeave={()=>setTooltip(null)}>
                         {evs.length>0&&(()=>{
@@ -967,7 +967,7 @@ function ChannelDashboard({channel,events,brand,bc,jasaMemos,saveJasaMemo,channe
   };
 
   // 캘린더 셀
-  const firstDay=new Date(y,m,1).getDay();
+  const firstDay=(new Date(y,m,1).getDay()+6)%7;
   const cells=Array(firstDay).fill(null).concat(Array.from({length:daysInMonth},(_,i)=>i+1));
   const openMemo=ds=>{setMemoModal({date:ds});setMemoText(jasaMemos[ds]||"");};
 
@@ -1627,7 +1627,7 @@ function EventList({events,brand,channels,chanNames,bc,collapsed,toggleCollapse,
             const dow=new Date(y,m,d2).getDay();
             return (
               <div key={d2} onClick={()=>{onSave(evId,field,dk);setCellCal(null);}}
-                style={{padding:"3px 0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:isSel?800:400,background:isSel?bc.tag:"transparent",color:isSel?"#fff":isOther?bc.tag:dow===0?"#e05c5c":dow===6?"#4f6ef7":"#334",border:isOther?`1px solid ${bc.tag}`:"none"}}>{d2}</div>
+                style={{padding:"3px 0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:isSel?800:400,background:isSel?bc.tag:"transparent",color:isSel?"#fff":isOther?bc.tag:dow===0?"#e05c5c":dow===5?"#4f6ef7":"#334",border:isOther?`1px solid ${bc.tag}`:"none"}}>{d2}</div>
             );
           })}
         </div>
@@ -2578,7 +2578,7 @@ function App() {
         </div>
         <div style={{display:"flex",gap:8,marginRight:16}}>
           {["전체",...DEFAULT_BRANDS].map(b=>(
-            <button key={b} onClick={()=>setBrand(b)} style={{padding:"6px 18px",borderRadius:20,border:"none",fontWeight:700,fontSize:13,cursor:"pointer",background:brand===b?"#fff":"#ffffff33",color:brand===b?bc.tag:"#fff"}}>{b}</button>
+            <button key={b} onClick={()=>{setBrand(b);setCalBrF([]);}} style={{padding:"6px 18px",borderRadius:20,border:"none",fontWeight:700,fontSize:13,cursor:"pointer",background:brand===b?"#fff":"#ffffff33",color:brand===b?bc.tag:"#fff"}}>{b}</button>
           ))}
         </div>
         {/* Firebase 상태 */}
