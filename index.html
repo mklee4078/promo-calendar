@@ -656,6 +656,8 @@ function MonthView({month,events,brand,chanNames,bc,collapsed,toggleCollapse,ope
   const days = new Date(Y,month+1,0).getDate();
   const cells = Array(first).fill(null).concat(Array.from({length:days},(_,i)=>i+1));
   const compact = cells.length > 35;
+  const MAX_COMPACT = 10;
+  const [expandedDay, setExpandedDay] = React.useState(null);
   const allForDay = dk => events.filter(e=>{
     if(brand!=="전체"&&e.brand!==brand) return false;
     const nn=normalize(e.channel);
@@ -688,20 +690,38 @@ function MonthView({month,events,brand,chanNames,bc,collapsed,toggleCollapse,ope
                   {hol&&<span style={{fontSize:7,color:"#e05c5c",fontWeight:700}}>{hol}</span>}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:2,padding:"0 3px"}}>
-                  {(compact?evs.slice(0,3):evs).map(ev=>{
-                    const ci=chanNames.indexOf(ev.channel),c=cc(ci<0?0:ci);
-                    const isStart=ev.startDate===dk;
-                    return (
-                      <div key={ev.id} onClick={()=>openEdit(ev)}
-                        style={{background:c+"1e",borderLeft:isStart?`3px solid ${c}`:"none",borderTop:`1px solid ${c}44`,borderBottom:`1px solid ${c}44`,borderRadius:isStart?"0 3px 3px 0":"0",padding:"1px 4px",fontSize:9,fontWeight:700,color:c,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",cursor:"pointer",display:"flex",alignItems:"center",gap:2}}>
-                        {isStart
-                          ?<><span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1}}>[{ev.channel}] {ev.name}</span>{ev.importance&&ev.importance!=="0"&&<span style={{fontSize:7,background:IMP_COLOR[ev.importance]+"33",color:IMP_COLOR[ev.importance],borderRadius:2,padding:"0 2px",flexShrink:0}}>{IMP_STAR[ev.importance]}</span>}</>
-                          :<span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1,opacity:0.7}}>[{ev.channel}] {ev.name}</span>
-                        }
-                      </div>
-                    );
-                  })}
-                  {evs.length>3&&compact&&<div style={{fontSize:8,color:"#889",textAlign:"right",paddingRight:2}}>+{evs.length-3}건</div>}
+                  {(()=>{
+                    const isExpanded = expandedDay===dk;
+                    const showEvs = compact&&!isExpanded ? evs.slice(0,MAX_COMPACT) : evs;
+                    const remain = evs.length - MAX_COMPACT;
+                    return (<>
+                      {showEvs.map(ev=>{
+                        const ci=chanNames.indexOf(ev.channel),c=cc(ci<0?0:ci);
+                        const isStart=ev.startDate===dk;
+                        return (
+                          <div key={ev.id} onClick={()=>openEdit(ev)}
+                            style={{background:c+"1e",borderLeft:isStart?`3px solid ${c}`:"none",borderTop:`1px solid ${c}44`,borderBottom:`1px solid ${c}44`,borderRadius:isStart?"0 3px 3px 0":"0",padding:"1px 4px",fontSize:9,fontWeight:700,color:c,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",cursor:"pointer",display:"flex",alignItems:"center",gap:2}}>
+                            {isStart
+                              ?<><span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1}}>[{ev.channel}] {ev.name}</span>{ev.importance&&ev.importance!=="0"&&<span style={{fontSize:7,background:IMP_COLOR[ev.importance]+"33",color:IMP_COLOR[ev.importance],borderRadius:2,padding:"0 2px",flexShrink:0}}>{IMP_STAR[ev.importance]}</span>}</>
+                              :<span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1,opacity:0.7}}>[{ev.channel}] {ev.name}</span>
+                            }
+                          </div>
+                        );
+                      })}
+                      {compact&&!isExpanded&&remain>0&&(
+                        <div onClick={e=>{e.stopPropagation();setExpandedDay(dk);}}
+                          style={{fontSize:8,color:bc.tag,textAlign:"right",paddingRight:2,cursor:"pointer",fontWeight:700}}>
+                          +{remain}건 더보기
+                        </div>
+                      )}
+                      {compact&&isExpanded&&(
+                        <div onClick={e=>{e.stopPropagation();setExpandedDay(null);}}
+                          style={{fontSize:8,color:"#889",textAlign:"right",paddingRight:2,cursor:"pointer",fontWeight:700}}>
+                          접기 ▲
+                        </div>
+                      )}
+                    </>);
+                  })()}
                 </div>
               </div>
             );
